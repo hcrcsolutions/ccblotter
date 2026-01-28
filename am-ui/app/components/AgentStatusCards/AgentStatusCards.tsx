@@ -21,7 +21,7 @@ interface StatusCardProps {
 
 function StatusCard({ title, count, icon, color, bgColor }: StatusCardProps) {
   return (
-    <Card sx={{ flex: 1, minWidth: 200 }}>
+    <Card sx={{ width: 200 }}>
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box>

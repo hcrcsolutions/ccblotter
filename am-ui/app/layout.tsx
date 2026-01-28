@@ -75,6 +75,15 @@ export default function RootLayout({
     <html lang="en" data-toolpad-color-scheme="light" suppressHydrationWarning>
       <head>
         <title>Agent Monitor - Call Center Dashboard</title>
+        <style>{`
+          /* Branding title color - theme aware */
+          .MuiTypography-h6 {
+            color: #1a1a1a !important;
+          }
+          [data-toolpad-color-scheme="dark"] .MuiTypography-h6 {
+            color: #f5f5f5 !important;
+          }
+        `}</style>
       </head>
       <body style={{ margin: 0 }} suppressHydrationWarning>
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
