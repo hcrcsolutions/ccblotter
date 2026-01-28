@@ -8,10 +8,6 @@ import type { Navigation } from '@toolpad/core/AppProvider';
 import { createTheme } from '@mui/material/styles';
 import getMPTheme from '@/theme/getMPTheme';
 import DashboardIcon from '@mui/icons-material/Dashboard';
-import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
-import GroupIcon from '@mui/icons-material/Group';
-import SettingsIcon from '@mui/icons-material/Settings';
-import BarChartIcon from '@mui/icons-material/BarChart';
 import PhoneIcon from '@mui/icons-material/Phone';
 
 // Navigation configuration for sidebar
@@ -60,20 +56,21 @@ function AgentMonitorLogo() {
   return <PhoneIcon sx={{ fontSize: 32 }} />;
 }
 
+// Create themes for both light and dark modes
+const lightTheme = createTheme(getMPTheme('light'));
+const darkTheme = createTheme(getMPTheme('dark'));
+
+// Combined theme object for @toolpad/core
+const theme = {
+  light: lightTheme,
+  dark: darkTheme,
+};
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [mode, setMode] = React.useState<'light' | 'dark'>('light');
-
-  const theme = React.useMemo(() => createTheme(getMPTheme(mode)), [mode]);
-
-  // Sync theme mode with HTML attribute for toolpad
-  React.useEffect(() => {
-    document.documentElement.setAttribute('data-toolpad-color-scheme', mode);
-  }, [mode]);
-
   return (
     <html lang="en" data-toolpad-color-scheme="light" suppressHydrationWarning>
       <head>

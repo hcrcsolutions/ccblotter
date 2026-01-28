@@ -347,6 +347,13 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
     isDarkMode: theme.palette.mode === 'dark',
   }), [theme.palette.mode]);
 
+  // Force refresh cells when theme changes to update pill colors
+  React.useEffect(() => {
+    if (gridRef.current?.api) {
+      gridRef.current.api.refreshCells({ force: true });
+    }
+  }, [theme.palette.mode]);
+
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
       <AgGridReact<AgentRowData>
