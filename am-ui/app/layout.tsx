@@ -7,48 +7,22 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import type { Navigation } from '@toolpad/core/AppProvider';
 import { createTheme } from '@mui/material/styles';
 import getMPTheme from '@/theme/getMPTheme';
-import DashboardIcon from '@mui/icons-material/Dashboard';
+import GroupIcon from '@mui/icons-material/Group';
+import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import PhoneIcon from '@mui/icons-material/Phone';
 
 // Navigation configuration for sidebar
 const NAVIGATION: Navigation = [
   {
     segment: '',
-    title: 'Dashboard',
-    icon: <DashboardIcon />,
+    title: 'Agents',
+    icon: <GroupIcon />,
   },
-  // {
-  //   kind: 'header',
-  //   title: 'Monitoring',
-  // },
-  // {
-  //   segment: 'agents',
-  //   title: 'Agents',
-  //   icon: <GroupIcon />,
-  // },
-  // {
-  //   segment: 'calls',
-  //   title: 'Active Calls',
-  //   icon: <PhoneInTalkIcon />,
-  // },
-  // {
-  //   kind: 'header',
-  //   title: 'Analytics',
-  // },
-  // {
-  //   segment: 'reports',
-  //   title: 'Reports',
-  //   icon: <BarChartIcon />,
-  // },
-  // {
-  //   kind: 'header',
-  //   title: 'System',
-  // },
-  // {
-  //   segment: 'settings',
-  //   title: 'Settings',
-  //   icon: <SettingsIcon />,
-  // },
+  {
+    segment: 'calls',
+    title: 'Calls',
+    icon: <PhoneInTalkIcon />,
+  },
 ];
 
 // Logo component for sidebar

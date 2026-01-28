@@ -6,6 +6,8 @@ import SockJS from 'sockjs-client';
 import type {
   Agent,
   Call,
+  QueuedCall,
+  QueueStats,
   AgentSummary,
   SystemStatus,
   ConnectionState,
@@ -31,6 +33,12 @@ const initialSystemStatus: SystemStatus = {
   errorMessage: null,
 };
 
+const initialQueueStats: QueueStats = {
+  queuedCount: 0,
+  avgWaitSeconds: 0,
+  longestWaitSeconds: 0,
+};
+
 /**
  * WebSocket hook for real-time dashboard updates.
  *
@@ -43,6 +51,8 @@ const initialSystemStatus: SystemStatus = {
 export function useWebSocket(): DashboardState {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [calls, setCalls] = useState<Call[]>([]);
+  const [queuedCalls, setQueuedCalls] = useState<QueuedCall[]>([]);
+  const [queueStats, setQueueStats] = useState<QueueStats>(initialQueueStats);
   const [summary, setSummary] = useState<AgentSummary>(initialSummary);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(initialSystemStatus);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
@@ -56,9 +66,10 @@ export function useWebSocket(): DashboardState {
     try {
       console.log('Fetching initial data via REST API...');
 
-      const [agentsRes, callsRes, summaryRes, healthRes] = await Promise.all([
+      const [agentsRes, callsRes, queueRes, summaryRes, healthRes] = await Promise.all([
         fetch(`${API_URL}/agents`),
         fetch(`${API_URL}/calls`),
+        fetch(`${API_URL}/queue`),
         fetch(`${API_URL}/agents/summary`),
         fetch(`${API_URL}/health`),
       ]);
@@ -73,6 +84,13 @@ export function useWebSocket(): DashboardState {
         const callsData = await callsRes.json();
         setCalls(callsData);
         console.log(`Loaded ${callsData.length} calls`);
+      }
+
+      if (queueRes.ok) {
+        const queueData = await queueRes.json();
+        setQueuedCalls(queueData.calls || []);
+        setQueueStats(queueData.stats || initialQueueStats);
+        console.log(`Loaded ${queueData.calls?.length || 0} queued calls`);
       }
 
       if (summaryRes.ok) {
@@ -143,6 +161,16 @@ export function useWebSocket(): DashboardState {
           }
         });
 
+        client.subscribe('/topic/queue', (message: IMessage) => {
+          try {
+            const data = JSON.parse(message.body) as { calls: QueuedCall[]; stats: QueueStats };
+            setQueuedCalls(data.calls || []);
+            setQueueStats(data.stats || initialQueueStats);
+          } catch (e) {
+            console.error('Failed to parse queue message', e);
+          }
+        });
+
         // Fetch initial data after subscriptions are set up
         fetchInitialData();
       },
@@ -202,6 +230,8 @@ export function useWebSocket(): DashboardState {
   return {
     agents,
     calls,
+    queuedCalls,
+    queueStats,
     summary,
     systemStatus,
     connectionState,

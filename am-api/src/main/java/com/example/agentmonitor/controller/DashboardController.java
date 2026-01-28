@@ -5,6 +5,7 @@ import com.example.agentmonitor.model.*;
 import com.example.agentmonitor.service.AgentService;
 import com.example.agentmonitor.service.CallService;
 import com.example.agentmonitor.service.DataGeneratorService;
+import com.example.agentmonitor.service.QueueService;
 import com.example.agentmonitor.service.RedisHealthService;
 import com.example.agentmonitor.service.SimulationService;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class DashboardController {
 
     private final AgentService agentService;
     private final CallService callService;
+    private final QueueService queueService;
     private final RedisHealthService healthService;
     private final DataGeneratorService dataGeneratorService;
     private final SimulationService simulationService;
@@ -79,6 +81,25 @@ public class DashboardController {
             return ResponseEntity.ok(calls);
         } catch (RedisUnavailableException e) {
             log.error("Redis unavailable when fetching calls", e);
+            return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
+        }
+    }
+
+    /**
+     * Get queued calls with statistics.
+     */
+    @GetMapping("/queue")
+    public ResponseEntity<Map<String, Object>> getQueue() {
+        try {
+            List<QueuedCall> calls = queueService.getQueuedCalls();
+            Map<String, Object> stats = queueService.getQueueStats();
+
+            return ResponseEntity.ok(Map.of(
+                "calls", calls,
+                "stats", stats
+            ));
+        } catch (RedisUnavailableException e) {
+            log.error("Redis unavailable when fetching queue", e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
     }

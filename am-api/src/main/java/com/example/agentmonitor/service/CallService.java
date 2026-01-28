@@ -4,6 +4,7 @@ import com.example.agentmonitor.exception.RedisUnavailableException;
 import com.example.agentmonitor.model.Agent;
 import com.example.agentmonitor.model.AgentState;
 import com.example.agentmonitor.model.Call;
+import com.example.agentmonitor.model.CallState;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -113,6 +114,7 @@ public class CallService {
                 .agentId(agentId)
                 .agentName(agent.getName())
                 .startTime(Instant.now())
+                .state(CallState.TALKING)
                 .build();
 
         // Save call to Redis
@@ -192,6 +194,26 @@ public class CallService {
     private void removeCallRecord(String callId) {
         redisTemplate.delete(CALL_KEY_PREFIX + callId);
         redisTemplate.opsForSet().remove(ACTIVE_CALLS_KEY, callId);
+    }
+
+    /**
+     * Toggle call hold state.
+     */
+    public void setCallState(String callId, CallState newState) {
+        ensureRedisAvailable();
+
+        Call call = getCall(callId);
+        if (call == null) {
+            throw new IllegalArgumentException("Call not found: " + callId);
+        }
+
+        call.setState(newState);
+
+        Map<String, Object> callMap = objectMapper.convertValue(call, Map.class);
+        redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
+
+        log.info("Call {} state changed to {}", callId, newState);
+        broadcastCalls();
     }
 
     /**

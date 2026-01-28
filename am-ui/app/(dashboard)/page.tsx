@@ -25,7 +25,7 @@ export default function DashboardPage() {
       {/* Connection Status */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <Typography variant="h4" component="h1">
-          Call Center Dashboard
+          Agents
         </Typography>
         <ConnectionStatus state={connectionState} />
       </Box>

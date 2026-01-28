@@ -46,4 +46,9 @@ public class Call {
      * Duration is computed client-side as: now - startTime
      */
     private Instant startTime;
+
+    /**
+     * Current state of the call (TALKING or ON_HOLD).
+     */
+    private CallState state;
 }

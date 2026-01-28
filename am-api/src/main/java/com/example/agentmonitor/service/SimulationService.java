@@ -3,6 +3,8 @@ package com.example.agentmonitor.service;
 import com.example.agentmonitor.model.Agent;
 import com.example.agentmonitor.model.AgentState;
 import com.example.agentmonitor.model.Call;
+import com.example.agentmonitor.model.CallState;
+import com.example.agentmonitor.model.QueuedCall;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -28,18 +30,25 @@ public class SimulationService {
 
     private final AgentService agentService;
     private final CallService callService;
+    private final QueueService queueService;
 
     private final AtomicBoolean simulationRunning = new AtomicBoolean(false);
     private final Random random = new Random();
 
     // Simulation parameters
-    private static final int NEW_CALL_CHANCE_PERCENT = 60;      // High chance to start new calls
-    private static final int END_CALL_CHANCE_PERCENT = 8;       // Lower chance to end calls
-    private static final int BREAK_START_CHANCE_PERCENT = 2;    // Low chance for ONLINE agent to go on break
-    private static final int BREAK_END_CHANCE_PERCENT = 30;     // High chance for AWAY agent to return
-    private static final int LOGOUT_CHANCE_PERCENT = 1;         // Very low chance for ONLINE agent to log out
-    private static final int LOGIN_CHANCE_PERCENT = 20;         // High chance for UNAVAILABLE agent to log in
-    private static final double MIN_ON_CALL_RATIO = 0.50;       // Maintain at least 50% agents on call
+    private static final int NEW_QUEUE_CALL_CHANCE_PERCENT = 40; // Chance to add call to queue
+    private static final int ANSWER_QUEUE_CHANCE_PERCENT = 70;   // Chance to answer from queue when agent available
+    private static final int END_CALL_CHANCE_PERCENT = 8;        // Lower chance to end calls
+    private static final int HOLD_TOGGLE_CHANCE_PERCENT = 5;     // Chance to toggle hold state
+    private static final int BREAK_START_CHANCE_PERCENT = 2;     // Low chance for ONLINE agent to go on break
+    private static final int BREAK_END_CHANCE_PERCENT = 30;      // High chance for AWAY agent to return
+    private static final int LOGOUT_CHANCE_PERCENT = 1;          // Very low chance for ONLINE agent to log out
+    private static final int LOGIN_CHANCE_PERCENT = 20;          // High chance for UNAVAILABLE agent to log in
+    private static final double MIN_ON_CALL_RATIO = 0.50;        // Maintain at least 50% agents on call
+    private static final int MAX_QUEUE_SIZE = 30;                // Maximum calls in queue
+
+    // Skills for queue routing
+    private static final String[] SKILLS = {"Sales", "Support", "Billing", "Technical"};
 
     // Area codes for realistic phone numbers
     private static final String[] AREA_CODES = {
@@ -85,6 +94,7 @@ public class SimulationService {
             // Get current state
             List<Agent> agents = agentService.getAllAgents();
             List<Call> activeCalls = callService.getActiveCalls();
+            List<QueuedCall> queuedCalls = queueService.getQueuedCalls();
 
             // Calculate current on-call ratio
             long totalAgents = agents.size();
@@ -92,8 +102,10 @@ public class SimulationService {
             double onCallRatio = totalAgents > 0 ? (double) onCallAgents / totalAgents : 0;
 
             // Simulate various activities with ratio awareness
-            simulateIncomingCalls(agents, onCallRatio);
+            simulateIncomingQueueCalls(queuedCalls.size());
+            simulateAnswerFromQueue(agents, queuedCalls, onCallRatio);
             simulateCallEndings(activeCalls, agents, onCallRatio);
+            simulateHoldToggle(activeCalls);
             simulateBreaks(agents, onCallRatio);
             simulateLogins(agents);
 
@@ -103,10 +115,39 @@ public class SimulationService {
     }
 
     /**
-     * Simulate incoming calls to ONLINE agents.
-     * More aggressive when below minimum on-call ratio.
+     * Simulate new calls arriving into the queue.
      */
-    private void simulateIncomingCalls(List<Agent> agents, double currentOnCallRatio) {
+    private void simulateIncomingQueueCalls(int currentQueueSize) {
+        // Don't exceed max queue size
+        if (currentQueueSize >= MAX_QUEUE_SIZE) {
+            return;
+        }
+
+        // Add 1-3 calls to queue per tick based on chance
+        for (int i = 0; i < 3; i++) {
+            if (random.nextInt(100) < NEW_QUEUE_CALL_CHANCE_PERCENT) {
+                String caller = generatePhoneNumber();
+                String skill = SKILLS[random.nextInt(SKILLS.length)];
+                int priority = random.nextInt(100) < 10 ? 1 : (random.nextInt(100) < 30 ? 2 : 3); // 10% high, 30% medium, 60% normal
+
+                try {
+                    queueService.addToQueue(caller, skill, priority);
+                    log.info("SIM: New call from {} added to {} queue (priority {})", caller, skill, priority);
+                } catch (Exception e) {
+                    // Ignore
+                }
+            }
+        }
+    }
+
+    /**
+     * Simulate agents answering calls from the queue.
+     */
+    private void simulateAnswerFromQueue(List<Agent> agents, List<QueuedCall> queuedCalls, double currentOnCallRatio) {
+        if (queuedCalls.isEmpty()) {
+            return;
+        }
+
         List<Agent> onlineAgents = agents.stream()
                 .filter(a -> a.getState() == AgentState.ONLINE)
                 .toList();
@@ -115,37 +156,47 @@ public class SimulationService {
             return;
         }
 
-        // If below minimum ratio, be very aggressive about starting calls
-        int effectiveChance = NEW_CALL_CHANCE_PERCENT;
-        int maxCallsPerTick = 3;
-
+        // More aggressive about answering when below target ratio
+        int effectiveChance = ANSWER_QUEUE_CHANCE_PERCENT;
         if (currentOnCallRatio < MIN_ON_CALL_RATIO) {
-            effectiveChance = 95; // Almost always start calls
-            maxCallsPerTick = 8;  // Start more calls per tick
-            log.debug("SIM: Below {}% on-call ratio ({}%), aggressively starting calls",
-                    (int)(MIN_ON_CALL_RATIO * 100), (int)(currentOnCallRatio * 100));
+            effectiveChance = 95;
         }
 
-        // Potentially start multiple calls per tick
-        int callsToStart = 0;
-        for (int i = 0; i < maxCallsPerTick; i++) {
+        // Try to answer multiple calls per tick
+        int callsToAnswer = Math.min(onlineAgents.size(), queuedCalls.size());
+        for (int i = 0; i < callsToAnswer; i++) {
             if (random.nextInt(100) < effectiveChance) {
-                callsToStart++;
+                QueuedCall queuedCall = queuedCalls.get(i);
+                Agent agent = onlineAgents.get(random.nextInt(onlineAgents.size()));
+
+                // Double-check agent is still online
+                Agent freshAgent = agentService.getAgent(agent.getId());
+                if (freshAgent != null && freshAgent.getState() == AgentState.ONLINE) {
+                    try {
+                        // Remove from queue and start active call
+                        queueService.removeFromQueue(queuedCall.getId());
+                        callService.startCall(queuedCall.getOriginator(), agent.getId());
+                        log.info("SIM: Agent {} answered queued call from {}", agent.getName(), queuedCall.getOriginator());
+                    } catch (Exception e) {
+                        // Agent may have changed state, ignore
+                    }
+                }
             }
         }
+    }
 
-        for (int i = 0; i < callsToStart && i < onlineAgents.size(); i++) {
-            Agent agent = onlineAgents.get(random.nextInt(onlineAgents.size()));
-
-            // Double-check agent is still online (might have been picked already)
-            Agent freshAgent = agentService.getAgent(agent.getId());
-            if (freshAgent != null && freshAgent.getState() == AgentState.ONLINE) {
-                String caller = generatePhoneNumber();
+    /**
+     * Simulate agents putting calls on hold or resuming.
+     */
+    private void simulateHoldToggle(List<Call> activeCalls) {
+        for (Call call : activeCalls) {
+            if (random.nextInt(100) < HOLD_TOGGLE_CHANCE_PERCENT) {
                 try {
-                    callService.startCall(caller, agent.getId());
-                    log.info("SIM: New call from {} to agent {}", caller, agent.getName());
+                    CallState newState = call.getState() == CallState.TALKING ? CallState.ON_HOLD : CallState.TALKING;
+                    callService.setCallState(call.getId(), newState);
+                    log.info("SIM: Call {} state changed to {}", call.getId(), newState);
                 } catch (Exception e) {
-                    // Agent may have changed state, ignore
+                    // Ignore
                 }
             }
         }

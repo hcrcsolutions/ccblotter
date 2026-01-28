@@ -342,6 +342,9 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
     });
   }, [theme]);
 
+  // Track previous theme mode to detect changes
+  const prevModeRef = React.useRef(theme.palette.mode);
+
   // Pass dark mode to cell renderers via context
   const gridContext = React.useMemo(() => ({
     isDarkMode: theme.palette.mode === 'dark',
@@ -349,8 +352,14 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
 
   // Force refresh cells when theme changes to update pill colors
   React.useEffect(() => {
-    if (gridRef.current?.api) {
-      gridRef.current.api.refreshCells({ force: true });
+    if (prevModeRef.current !== theme.palette.mode) {
+      prevModeRef.current = theme.palette.mode;
+      // Use setTimeout to avoid render loop
+      setTimeout(() => {
+        if (gridRef.current?.api) {
+          gridRef.current.api.refreshCells({ force: true });
+        }
+      }, 0);
     }
   }, [theme.palette.mode]);
 

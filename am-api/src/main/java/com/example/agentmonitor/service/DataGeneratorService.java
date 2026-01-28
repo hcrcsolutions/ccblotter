@@ -28,6 +28,7 @@ public class DataGeneratorService {
 
     private final AgentService agentService;
     private final CallService callService;
+    private final QueueService queueService;
 
     // Realistic first names
     private static final String[] FIRST_NAMES = {
@@ -175,7 +176,13 @@ public class DataGeneratorService {
                 agentService.removeAgent(agent.getId());
             }
         } catch (Exception e) {
-            log.warn("Error clearing existing data: {}", e.getMessage());
+            log.warn("Error clearing existing agents: {}", e.getMessage());
+        }
+        // Clear the queue
+        try {
+            queueService.clearQueue();
+        } catch (Exception e) {
+            log.warn("Error clearing queue: {}", e.getMessage());
         }
     }
 

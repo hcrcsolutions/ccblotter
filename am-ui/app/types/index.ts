@@ -21,6 +21,11 @@ export interface Agent {
 }
 
 /**
+ * Call state for active calls.
+ */
+export type CallState = 'TALKING' | 'ON_HOLD';
+
+/**
  * Represents an active call.
  */
 export interface Call {
@@ -29,6 +34,27 @@ export interface Call {
   agentId: string;
   agentName: string;
   startTime: string; // ISO timestamp
+  state: CallState;
+}
+
+/**
+ * Represents a call waiting in queue.
+ */
+export interface QueuedCall {
+  id: string;
+  originator: string;
+  queuedAt: string; // ISO timestamp
+  priority: number; // 1 = highest
+  skill: string;
+}
+
+/**
+ * Queue statistics.
+ */
+export interface QueueStats {
+  queuedCount: number;
+  avgWaitSeconds: number;
+  longestWaitSeconds: number;
 }
 
 /**
@@ -62,6 +88,8 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'err
 export interface DashboardState {
   agents: Agent[];
   calls: Call[];
+  queuedCalls: QueuedCall[];
+  queueStats: QueueStats;
   summary: AgentSummary;
   systemStatus: SystemStatus;
   connectionState: ConnectionState;
