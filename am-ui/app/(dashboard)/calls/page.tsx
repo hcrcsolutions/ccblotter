@@ -331,12 +331,9 @@ export default function CallsPage() {
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 
   return (
-    <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Header */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-        <Typography variant="h4" component="h1">
-          Calls
-        </Typography>
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      {/* Connection Status */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <ConnectionStatus state={connectionState} />
       </Box>
 

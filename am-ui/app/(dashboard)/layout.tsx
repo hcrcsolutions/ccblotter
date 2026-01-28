@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Stack, Box } from '@mui/material';
 import { DashboardLayout, ThemeSwitcher } from '@toolpad/core/DashboardLayout';
+import { PageContainer } from '@toolpad/core/PageContainer';
 import { useTheme } from '@mui/material/styles';
 
 // Wrapper to sync theme with HTML attribute
@@ -36,17 +37,17 @@ export default function DashboardPagesLayout({
         toolbarActions: ToolbarActions,
       }}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          flexDirection: 'column',
-          minHeight: 'calc(100vh - 64px)',
-        }}
-      >
-        <Box sx={{ flex: 1 }}>
+      <PageContainer>
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: 'calc(100vh - 64px - 48px)', // Account for PageContainer header
+          }}
+        >
           {children}
         </Box>
-      </Box>
+      </PageContainer>
     </DashboardLayout>
   );
 }
