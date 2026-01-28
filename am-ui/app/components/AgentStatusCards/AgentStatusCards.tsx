@@ -9,6 +9,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import CoffeeIcon from '@mui/icons-material/Coffee';
 import DoNotDisturbIcon from '@mui/icons-material/DoNotDisturb';
+import GroupIcon from '@mui/icons-material/Group';
 import type { AgentSummary } from '../../types';
 
 interface StatusCardProps {
@@ -58,6 +59,13 @@ interface AgentStatusCardsProps {
 
 export function AgentStatusCards({ summary }: AgentStatusCardsProps) {
   const cards = [
+    {
+      title: 'All Agents',
+      count: summary.total,
+      icon: <GroupIcon sx={{ fontSize: 32 }} />,
+      color: 'hsl(220, 20%, 40%)',
+      bgColor: 'hsl(220, 20%, 95%)',
+    },
     {
       title: 'Online',
       count: summary.online,

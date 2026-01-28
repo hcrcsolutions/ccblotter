@@ -47,12 +47,7 @@ export default function DashboardPage() {
 
           {/* Agent Grid */}
           <Box sx={{ mt: 3, flex: 1, minHeight: 0 }}>
-            <Typography variant="h6" sx={{ mb: 2 }}>
-              All Agents ({agents.length})
-            </Typography>
-            <Box sx={{ height: 'calc(100% - 40px)', width: '100%' }}>
-              <AgentGrid agents={agents} calls={calls} />
-            </Box>
+            <AgentGrid agents={agents} calls={calls} />
           </Box>
         </>
       )}
