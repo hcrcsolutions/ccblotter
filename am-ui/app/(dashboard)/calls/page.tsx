@@ -331,7 +331,7 @@ export default function CallsPage() {
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 
   return (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
       {/* Connection Status */}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
         <ConnectionStatus state={connectionState} />

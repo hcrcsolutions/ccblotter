@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Suspense } from 'react';
+import { usePathname } from 'next/navigation';
 import { NextAppProvider } from '@toolpad/core/nextjs';
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import type { Navigation } from '@toolpad/core/AppProvider';
@@ -25,6 +26,12 @@ const NAVIGATION: Navigation = [
   },
 ];
 
+// Page titles based on pathname
+const PAGE_TITLES: Record<string, string> = {
+  '/': 'Agents',
+  '/calls': 'Calls',
+};
+
 // Logo component for sidebar
 function AgentMonitorLogo() {
   return <PhoneIcon sx={{ fontSize: 32 }} />;
@@ -39,6 +46,25 @@ const theme = {
   light: lightTheme,
   dark: darkTheme,
 };
+
+function AppProviderWithDynamicTitle({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const pageTitle = PAGE_TITLES[pathname] || 'Agent Monitor';
+
+  return (
+    <NextAppProvider
+      theme={theme}
+      navigation={NAVIGATION}
+      branding={{
+        logo: <AgentMonitorLogo />,
+        title: pageTitle,
+        homeUrl: '/',
+      }}
+    >
+      {children}
+    </NextAppProvider>
+  );
+}
 
 export default function RootLayout({
   children,
@@ -62,17 +88,9 @@ export default function RootLayout({
       <body style={{ margin: 0 }} suppressHydrationWarning>
         <AppRouterCacheProvider options={{ enableCssLayer: true }}>
           <Suspense fallback={null}>
-            <NextAppProvider
-              theme={theme}
-              navigation={NAVIGATION}
-              branding={{
-                logo: <AgentMonitorLogo />,
-                title: 'Agent Monitor',
-                homeUrl: '/',
-              }}
-            >
+            <AppProviderWithDynamicTitle>
               {children}
-            </NextAppProvider>
+            </AppProviderWithDynamicTitle>
           </Suspense>
         </AppRouterCacheProvider>
       </body>
