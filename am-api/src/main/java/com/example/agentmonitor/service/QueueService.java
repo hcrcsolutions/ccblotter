@@ -76,13 +76,21 @@ public class QueueService {
      * Add a call to the queue.
      */
     public QueuedCall addToQueue(String originator, String skill, int priority) {
+        return addToQueue(originator, skill, priority, Instant.now(), true);
+    }
+
+    /**
+     * Add a call to the queue with a specific queue time (for test data generation).
+     * @param broadcast whether to broadcast the update (set false when bulk loading)
+     */
+    public QueuedCall addToQueue(String originator, String skill, int priority, Instant queuedAt, boolean broadcast) {
         ensureRedisAvailable();
 
         String callId = UUID.randomUUID().toString();
         QueuedCall call = QueuedCall.builder()
                 .id(callId)
                 .originator(originator)
-                .queuedAt(Instant.now())
+                .queuedAt(queuedAt)
                 .skill(skill)
                 .priority(priority)
                 .build();
@@ -94,7 +102,9 @@ public class QueueService {
         log.info("Added call {} to queue from {} (skill: {}, priority: {})",
                 callId, originator, skill, priority);
 
-        broadcastQueue();
+        if (broadcast) {
+            broadcastQueue();
+        }
         return call;
     }
 

@@ -16,10 +16,12 @@ import java.util.concurrent.ThreadLocalRandom;
  * Service to generate realistic test data for 400 call center agents.
  *
  * Distribution:
- * - 50% ONLINE (ready for calls)
- * - 25% ON_CALL (active calls)
- * - 15% AWAY (breaks)
- * - 10% UNAVAILABLE (logged out)
+ * - 30% ONLINE (ready for calls)
+ * - 55% ON_CALL (active calls)
+ * - 10% AWAY (breaks)
+ * - 5% UNAVAILABLE (logged out)
+ *
+ * Also generates 15-25 queued calls with varying wait times and priorities.
  */
 @Service
 @Slf4j
@@ -29,6 +31,9 @@ public class DataGeneratorService {
     private final AgentService agentService;
     private final CallService callService;
     private final QueueService queueService;
+
+    // Skills for queue routing
+    private static final String[] SKILLS = {"Sales", "Support", "Billing", "Technical"};
 
     // Realistic first names
     private static final String[] FIRST_NAMES = {
@@ -158,13 +163,67 @@ public class DataGeneratorService {
             backdateCallStartTime(call.getId(), generateCallStartTime());
         }
 
-        log.info("Data generation complete. Created {} agents with {} active calls.",
-                agents.size(), onCallAgentIds.size());
+        // Generate queued calls
+        int queuedCallCount = generateQueuedCalls();
+
+        log.info("Data generation complete. Created {} agents with {} active calls and {} queued calls.",
+                agents.size(), onCallAgentIds.size(), queuedCallCount);
 
         // Broadcast updates
         agentService.broadcastAgents();
         agentService.broadcastSummary();
         callService.broadcastCalls();
+        queueService.broadcastQueue();
+    }
+
+    /**
+     * Generate 15-25 queued calls with realistic wait times and priority distribution.
+     * Wait times range from a few seconds to over 3 minutes.
+     * Priority distribution: 10% high (1), 25% medium (2), 65% normal (3)
+     */
+    private int generateQueuedCalls() {
+        int callCount = 15 + random.nextInt(11); // 15-25 calls
+        log.info("Generating {} queued calls...", callCount);
+
+        Instant now = Instant.now();
+
+        for (int i = 0; i < callCount; i++) {
+            String originator = generatePhoneNumber();
+            String skill = SKILLS[random.nextInt(SKILLS.length)];
+
+            // Priority distribution: 10% high, 25% medium, 65% normal
+            int priorityRoll = random.nextInt(100);
+            int priority;
+            if (priorityRoll < 10) {
+                priority = 1; // High
+            } else if (priorityRoll < 35) {
+                priority = 2; // Medium
+            } else {
+                priority = 3; // Normal
+            }
+
+            // Wait time distribution:
+            // 30% recent (5-30 seconds)
+            // 40% moderate (30-90 seconds)
+            // 20% long (90-180 seconds)
+            // 10% very long (180-300 seconds)
+            int waitRoll = random.nextInt(100);
+            int waitSeconds;
+            if (waitRoll < 30) {
+                waitSeconds = 5 + random.nextInt(26); // 5-30s
+            } else if (waitRoll < 70) {
+                waitSeconds = 30 + random.nextInt(61); // 30-90s
+            } else if (waitRoll < 90) {
+                waitSeconds = 90 + random.nextInt(91); // 90-180s
+            } else {
+                waitSeconds = 180 + random.nextInt(121); // 180-300s
+            }
+
+            Instant queuedAt = now.minus(waitSeconds, ChronoUnit.SECONDS);
+            queueService.addToQueue(originator, skill, priority, queuedAt, false);
+        }
+
+        return callCount;
     }
 
     private void clearExistingData() {
