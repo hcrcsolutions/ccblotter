@@ -5,7 +5,6 @@ import Box from '@mui/material/Box';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { AgentStatusCards } from '../components/AgentStatusCards/AgentStatusCards';
 import { AgentGrid } from '../components/AgentGrid/AgentGrid';
-import { ConnectionStatus } from '../components/ConnectionStatus/ConnectionStatus';
 import { ErrorBanner } from '../components/ErrorBanner/ErrorBanner';
 
 export default function DashboardPage() {
@@ -21,11 +20,6 @@ export default function DashboardPage() {
 
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Connection Status */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <ConnectionStatus state={connectionState} />
-      </Box>
-
       {/* Error Banner - fail-closed on Redis unavailability */}
       {showError && (
         <ErrorBanner

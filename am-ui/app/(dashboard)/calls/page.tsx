@@ -15,7 +15,6 @@ import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 import { useWebSocket } from '../../hooks/useWebSocket';
-import { ConnectionStatus } from '../../components/ConnectionStatus/ConnectionStatus';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 import type { Call, QueuedCall, CallState } from '../../types';
 
@@ -332,11 +331,6 @@ export default function CallsPage() {
 
   return (
     <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      {/* Connection Status */}
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-        <ConnectionStatus state={connectionState} />
-      </Box>
-
       {/* Error Banner */}
       {showError && (
         <ErrorBanner
