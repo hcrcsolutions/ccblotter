@@ -13,7 +13,6 @@ import IconButton from '@mui/material/IconButton';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import ListItemText from '@mui/material/ListItemText';
 import MenuIcon from '@mui/icons-material/Menu';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
@@ -34,9 +33,9 @@ interface NavItem {
 }
 
 const NAVIGATION: NavItem[] = [
-  { segment: 'agents', title: 'Agents', icon: <GroupIcon /> },
-  { segment: 'calls', title: 'Calls', icon: <PhoneInTalkIcon /> },
-  { segment: 'settings', title: 'Settings', icon: <SettingsIcon /> },
+  { segment: 'agents', title: 'Agents', icon: <GroupIcon sx={{ fontSize: 24 }} /> },
+  { segment: 'calls', title: 'Calls', icon: <PhoneInTalkIcon sx={{ fontSize: 24 }} /> },
+  { segment: 'settings', title: 'Settings', icon: <SettingsIcon sx={{ fontSize: 24 }} /> },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
@@ -76,8 +75,8 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
       >
         {drawerOpen && (
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <PhoneIcon color="primary" />
-            <Typography variant="h6" noWrap color="primary">
+            <PhoneIcon sx={{ color: 'text.primary' }} />
+            <Typography variant="h6" noWrap sx={{ color: 'text.primary' }}>
               OSCC Admin
             </Typography>
           </Box>
@@ -88,48 +87,63 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
       </Toolbar>
 
       {/* Navigation List */}
-      <List sx={{ flex: 1, pt: 1 }}>
+      <List sx={{ flex: 1, p: 0 }}>
         {NAVIGATION.map((item) => {
           const href = `/${item.segment}`;
           const isActive = pathname === href;
 
           return (
-            <ListItem key={item.segment} disablePadding sx={{ display: 'block' }}>
+            <ListItem key={item.segment} disablePadding>
               <ListItemButton
                 component={Link}
                 href={href}
                 selected={isActive}
                 sx={{
-                  minHeight: 48,
-                  justifyContent: drawerOpen ? 'initial' : 'center',
-                  px: 2.5,
-                  mx: 1,
-                  borderRadius: 1,
+                  minHeight: 56,
+                  flexDirection: drawerOpen ? 'row' : 'column',
+                  justifyContent: drawerOpen ? 'flex-start' : 'center',
+                  alignItems: 'center',
+                  py: 1,
+                  px: drawerOpen ? 2 : 1,
+                  borderRadius: '0 !important',
+                  gap: drawerOpen ? 2 : 0,
+                  borderLeft: isActive ? 3 : 0,
+                  borderLeftStyle: 'solid',
+                  borderLeftColor: 'text.primary',
                   '&.Mui-selected': {
-                    backgroundColor: 'action.selected',
+                    backgroundColor: 'transparent',
                   },
                 }}
               >
                 <ListItemIcon
                   sx={{
-                    minWidth: 0,
-                    mr: drawerOpen ? 2 : 'auto',
+                    minWidth: 24,
+                    width: 24,
+                    height: 24,
+                    m: 0,
                     justifyContent: 'center',
                     color: isActive ? 'primary.main' : 'inherit',
+                    '& .MuiSvgIcon-root': {
+                      width: 24,
+                      height: 24,
+                    },
                   }}
                 >
                   {item.icon}
                 </ListItemIcon>
-                {drawerOpen && (
-                  <ListItemText
-                    primary={item.title}
-                    sx={{
-                      '& .MuiTypography-root': {
-                        fontWeight: isActive ? 600 : 400,
-                      },
-                    }}
-                  />
-                )}
+                <Typography
+                  variant={drawerOpen ? 'body1' : 'caption'}
+                  sx={{
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? 'primary.main' : 'text.secondary',
+                    textAlign: drawerOpen ? 'left' : 'center',
+                    fontSize: drawerOpen ? undefined : '0.65rem',
+                    m: 0,
+                    lineHeight: 1,
+                  }}
+                >
+                  {item.title}
+                </Typography>
               </ListItemButton>
             </ListItem>
           );
@@ -152,6 +166,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
               duration: theme.transitions.duration.leavingScreen,
             }),
           bgcolor: 'background.paper',
+          borderLeft: 'none',
         }}
         color="default"
         elevation={1}
