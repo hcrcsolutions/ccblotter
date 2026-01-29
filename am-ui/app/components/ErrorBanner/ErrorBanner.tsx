@@ -23,7 +23,6 @@ interface ErrorBannerProps {
  */
 export function ErrorBanner({ redisConnected, connectionState, errorMessage }: ErrorBannerProps) {
   const isRedisError = !redisConnected;
-  const isConnectionError = connectionState === 'error';
 
   const title = isRedisError
     ? 'Data Source Unavailable'

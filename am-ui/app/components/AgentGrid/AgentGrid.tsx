@@ -3,15 +3,13 @@
 import * as React from 'react';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, ValueFormatterParams, ValueGetterParams } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
+import { themeQuartz } from 'ag-grid-community';
 import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type { Agent, Call, AgentState } from '../../types';
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule]);
+import '../../lib/agGridSetup';
 
 // Status colors with light and dark mode variants
 const STATUS_COLORS: Record<AgentState, {

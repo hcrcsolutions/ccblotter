@@ -93,4 +93,5 @@ export interface DashboardState {
   summary: AgentSummary;
   systemStatus: SystemStatus;
   connectionState: ConnectionState;
+  reconnect: () => void;
 }

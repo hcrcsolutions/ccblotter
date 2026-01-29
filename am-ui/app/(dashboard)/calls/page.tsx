@@ -8,7 +8,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams, ValueFormatterParams } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
+import { themeQuartz } from 'ag-grid-community';
 import Chip from '@mui/material/Chip';
 import QueueIcon from '@mui/icons-material/Queue';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
@@ -16,10 +16,8 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
-import type { Call, QueuedCall, CallState } from '../../types';
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule]);
+import type { Call, CallState } from '../../types';
+import '../../lib/agGridSetup';
 
 // Status colors for call state
 const CALL_STATE_COLORS: Record<CallState, {
@@ -224,10 +222,24 @@ export default function CallsPage() {
     state: CallState;
   }>>([]);
 
-  // Update queued calls data
+  // Use refs to hold current data to avoid recreating intervals on every data change
+  const queuedCallsRef = React.useRef(queuedCalls);
+  const callsRef = React.useRef(calls);
+
+  // Keep refs in sync with props
   React.useEffect(() => {
-    const updateData = () => {
-      const rows = queuedCalls.map((call, index) => ({
+    queuedCallsRef.current = queuedCalls;
+  }, [queuedCalls]);
+
+  React.useEffect(() => {
+    callsRef.current = calls;
+  }, [calls]);
+
+  // Update queued calls data - single interval, reads from ref
+  React.useEffect(() => {
+    const updateQueuedData = () => {
+      const currentCalls = queuedCallsRef.current;
+      const rows = currentCalls.map((call, index) => ({
         id: call.id,
         originator: call.originator,
         waitTime: calculateDuration(call.queuedAt) || 0,
@@ -238,15 +250,19 @@ export default function CallsPage() {
       setQueuedRowData(rows);
     };
 
-    updateData();
-    const interval = setInterval(updateData, 1000);
-    return () => clearInterval(interval);
-  }, [queuedCalls]);
+    // Initial update
+    updateQueuedData();
 
-  // Update active calls data
+    // Single interval that persists for component lifetime
+    const interval = setInterval(updateQueuedData, 1000);
+    return () => clearInterval(interval);
+  }, []); // Empty deps - interval created once
+
+  // Update active calls data - single interval, reads from ref
   React.useEffect(() => {
-    const updateData = () => {
-      const rows = calls.map(call => ({
+    const updateActiveData = () => {
+      const currentCalls = callsRef.current;
+      const rows = currentCalls.map(call => ({
         id: call.id,
         originator: call.originator,
         agentName: call.agentName,
@@ -256,10 +272,13 @@ export default function CallsPage() {
       setActiveRowData(rows);
     };
 
-    updateData();
-    const interval = setInterval(updateData, 1000);
+    // Initial update
+    updateActiveData();
+
+    // Single interval that persists for component lifetime
+    const interval = setInterval(updateActiveData, 1000);
     return () => clearInterval(interval);
-  }, [calls]);
+  }, []); // Empty deps - interval created once
 
   // Queued calls column definitions
   const queuedColumnDefs = React.useMemo<ColDef[]>(() => [

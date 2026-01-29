@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Client, IMessage } from '@stomp/stompjs';
+import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import type {
   Agent,
@@ -84,57 +84,119 @@ export function useWebSocket(): DashboardState {
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
 
   const clientRef = useRef<Client | null>(null);
+  const subscriptionsRef = useRef<StompSubscription[]>([]);
   const reconnectAttempts = useRef(0);
-  const reconnectTimeout = useRef<NodeJS.Timeout | null>(null);
+  const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isMountedRef = useRef(true);
 
-  // Fetch initial data via REST API
+  // Fetch initial data via REST API using Promise.allSettled for resilience
   const fetchInitialData = useCallback(async () => {
-    try {
-      const apiUrl = `${getBackendUrl()}/api`;
-      console.log('Fetching initial data via REST API...', apiUrl);
+    if (!isMountedRef.current) return;
 
-      const [agentsRes, callsRes, queueRes, summaryRes, healthRes] = await Promise.all([
-        fetch(`${apiUrl}/agents`),
-        fetch(`${apiUrl}/calls`),
-        fetch(`${apiUrl}/queue`),
-        fetch(`${apiUrl}/agents/summary`),
-        fetch(`${apiUrl}/health`),
-      ]);
+    const apiUrl = `${getBackendUrl()}/api`;
+    console.log('Fetching initial data via REST API...', apiUrl);
 
-      if (agentsRes.ok) {
-        const agentsData = await agentsRes.json();
-        setAgents(agentsData);
-        console.log(`Loaded ${agentsData.length} agents`);
+    const results = await Promise.allSettled([
+      fetch(`${apiUrl}/agents`),
+      fetch(`${apiUrl}/calls`),
+      fetch(`${apiUrl}/queue`),
+      fetch(`${apiUrl}/agents/summary`),
+      fetch(`${apiUrl}/health`),
+    ]);
+
+    const [agentsResult, callsResult, queueResult, summaryResult, healthResult] = results;
+
+    // Process agents
+    if (agentsResult.status === 'fulfilled' && agentsResult.value.ok) {
+      try {
+        const agentsData = await agentsResult.value.json();
+        if (isMountedRef.current) {
+          setAgents(agentsData);
+          console.log(`Loaded ${agentsData.length} agents`);
+        }
+      } catch (e) {
+        console.error('Failed to parse agents response:', e);
       }
+    } else if (agentsResult.status === 'rejected') {
+      console.error('Failed to fetch agents:', agentsResult.reason);
+    }
 
-      if (callsRes.ok) {
-        const callsData = await callsRes.json();
-        setCalls(callsData);
-        console.log(`Loaded ${callsData.length} calls`);
+    // Process calls
+    if (callsResult.status === 'fulfilled' && callsResult.value.ok) {
+      try {
+        const callsData = await callsResult.value.json();
+        if (isMountedRef.current) {
+          setCalls(callsData);
+          console.log(`Loaded ${callsData.length} calls`);
+        }
+      } catch (e) {
+        console.error('Failed to parse calls response:', e);
       }
+    } else if (callsResult.status === 'rejected') {
+      console.error('Failed to fetch calls:', callsResult.reason);
+    }
 
-      if (queueRes.ok) {
-        const queueData = await queueRes.json();
-        setQueuedCalls(queueData.calls || []);
-        setQueueStats(queueData.stats || initialQueueStats);
-        console.log(`Loaded ${queueData.calls?.length || 0} queued calls`);
+    // Process queue
+    if (queueResult.status === 'fulfilled' && queueResult.value.ok) {
+      try {
+        const queueData = await queueResult.value.json();
+        if (isMountedRef.current) {
+          setQueuedCalls(queueData.calls || []);
+          setQueueStats(queueData.stats || initialQueueStats);
+          console.log(`Loaded ${queueData.calls?.length || 0} queued calls`);
+        }
+      } catch (e) {
+        console.error('Failed to parse queue response:', e);
       }
+    } else if (queueResult.status === 'rejected') {
+      console.error('Failed to fetch queue:', queueResult.reason);
+    }
 
-      if (summaryRes.ok) {
-        const summaryData = await summaryRes.json();
-        setSummary(summaryData);
+    // Process summary
+    if (summaryResult.status === 'fulfilled' && summaryResult.value.ok) {
+      try {
+        const summaryData = await summaryResult.value.json();
+        if (isMountedRef.current) {
+          setSummary(summaryData);
+        }
+      } catch (e) {
+        console.error('Failed to parse summary response:', e);
       }
+    } else if (summaryResult.status === 'rejected') {
+      console.error('Failed to fetch summary:', summaryResult.reason);
+    }
 
-      if (healthRes.ok) {
-        const healthData = await healthRes.json();
-        setSystemStatus(healthData);
+    // Process health
+    if (healthResult.status === 'fulfilled' && healthResult.value.ok) {
+      try {
+        const healthData = await healthResult.value.json();
+        if (isMountedRef.current) {
+          setSystemStatus(healthData);
+        }
+      } catch (e) {
+        console.error('Failed to parse health response:', e);
       }
-    } catch (error) {
-      console.error('Failed to fetch initial data:', error);
+    } else if (healthResult.status === 'rejected') {
+      console.error('Failed to fetch health:', healthResult.reason);
     }
   }, []);
 
   const connect = useCallback(() => {
+    // Don't connect if component is unmounted
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    // Unsubscribe from all existing subscriptions to prevent memory leak
+    subscriptionsRef.current.forEach(subscription => {
+      try {
+        subscription.unsubscribe();
+      } catch (e) {
+        // Subscription may already be invalid if client disconnected
+      }
+    });
+    subscriptionsRef.current = [];
+
     // Clean up any existing connection
     if (clientRef.current?.active) {
       clientRef.current.deactivate();
@@ -150,12 +212,15 @@ export function useWebSocket(): DashboardState {
       reconnectDelay: 0, // We handle reconnection manually
 
       onConnect: () => {
+        if (!isMountedRef.current) return;
+
         console.log('WebSocket connected');
         setConnectionState('connected');
         reconnectAttempts.current = 0;
 
-        // Subscribe to all topics
-        client.subscribe('/topic/agents', (message: IMessage) => {
+        // Subscribe to all topics and store references for cleanup
+        const agentsSub = client.subscribe('/topic/agents', (message: IMessage) => {
+          if (!isMountedRef.current) return;
           try {
             const data = JSON.parse(message.body) as Agent[];
             setAgents(data);
@@ -163,8 +228,10 @@ export function useWebSocket(): DashboardState {
             console.error('Failed to parse agents message', e);
           }
         });
+        subscriptionsRef.current.push(agentsSub);
 
-        client.subscribe('/topic/calls', (message: IMessage) => {
+        const callsSub = client.subscribe('/topic/calls', (message: IMessage) => {
+          if (!isMountedRef.current) return;
           try {
             const data = JSON.parse(message.body) as Call[];
             setCalls(data);
@@ -172,8 +239,10 @@ export function useWebSocket(): DashboardState {
             console.error('Failed to parse calls message', e);
           }
         });
+        subscriptionsRef.current.push(callsSub);
 
-        client.subscribe('/topic/summary', (message: IMessage) => {
+        const summarySub = client.subscribe('/topic/summary', (message: IMessage) => {
+          if (!isMountedRef.current) return;
           try {
             const data = JSON.parse(message.body) as AgentSummary;
             setSummary(data);
@@ -181,8 +250,10 @@ export function useWebSocket(): DashboardState {
             console.error('Failed to parse summary message', e);
           }
         });
+        subscriptionsRef.current.push(summarySub);
 
-        client.subscribe('/topic/system', (message: IMessage) => {
+        const systemSub = client.subscribe('/topic/system', (message: IMessage) => {
+          if (!isMountedRef.current) return;
           try {
             const data = JSON.parse(message.body) as SystemStatus;
             setSystemStatus(data);
@@ -190,8 +261,10 @@ export function useWebSocket(): DashboardState {
             console.error('Failed to parse system status message', e);
           }
         });
+        subscriptionsRef.current.push(systemSub);
 
-        client.subscribe('/topic/queue', (message: IMessage) => {
+        const queueSub = client.subscribe('/topic/queue', (message: IMessage) => {
+          if (!isMountedRef.current) return;
           try {
             const data = JSON.parse(message.body) as { calls: QueuedCall[]; stats: QueueStats };
             setQueuedCalls(data.calls || []);
@@ -200,6 +273,7 @@ export function useWebSocket(): DashboardState {
             console.error('Failed to parse queue message', e);
           }
         });
+        subscriptionsRef.current.push(queueSub);
 
         // Fetch initial data after subscriptions are set up
         fetchInitialData();
@@ -226,6 +300,11 @@ export function useWebSocket(): DashboardState {
   }, [fetchInitialData]);
 
   const handleDisconnect = useCallback(() => {
+    // Don't attempt reconnection if component is unmounted
+    if (!isMountedRef.current) {
+      return;
+    }
+
     if (reconnectAttempts.current >= MAX_RECONNECT_ATTEMPTS) {
       console.error('Max reconnection attempts reached');
       setConnectionState('error');
@@ -240,21 +319,51 @@ export function useWebSocket(): DashboardState {
     console.log(`Reconnecting in ${delay}ms (attempt ${reconnectAttempts.current})`);
 
     reconnectTimeout.current = setTimeout(() => {
-      connect();
+      if (isMountedRef.current) {
+        connect();
+      }
     }, delay);
   }, [connect]);
 
   useEffect(() => {
+    isMountedRef.current = true;
     connect();
 
     return () => {
+      // Mark as unmounted first to prevent reconnection attempts and state updates
+      isMountedRef.current = false;
+
+      // Clear any pending reconnection timeout
       if (reconnectTimeout.current) {
         clearTimeout(reconnectTimeout.current);
+        reconnectTimeout.current = null;
       }
+
+      // Unsubscribe from all topics before deactivating
+      subscriptionsRef.current.forEach(subscription => {
+        try {
+          subscription.unsubscribe();
+        } catch (e) {
+          // Subscription may already be invalid
+        }
+      });
+      subscriptionsRef.current = [];
+
+      // Deactivate the client
       if (clientRef.current?.active) {
         clientRef.current.deactivate();
       }
+      clientRef.current = null;
     };
+  }, [connect]);
+
+  const reconnect = useCallback(() => {
+    console.log('Manual reconnect triggered');
+    reconnectAttempts.current = 0;
+    if (reconnectTimeout.current) {
+      clearTimeout(reconnectTimeout.current);
+    }
+    connect();
   }, [connect]);
 
   return {
@@ -265,5 +374,6 @@ export function useWebSocket(): DashboardState {
     summary,
     systemStatus,
     connectionState,
+    reconnect,
   };
 }

@@ -27,8 +27,6 @@ declare module '@mui/material/styles' {
 
 const defaultTheme = createTheme();
 
-const customShadows: Shadows = [...defaultTheme.shadows];
-
 export const brand = {
   50: 'hsl(210, 100%, 95%)',
   100: 'hsl(210, 100%, 92%)',
@@ -95,6 +93,9 @@ export const red = {
 };
 
 export const getDesignTokens = (mode: PaletteMode) => {
+  // Create fresh shadows array for each call to avoid cross-contamination between themes
+  const customShadows: Shadows = [...defaultTheme.shadows];
+
   customShadows[1] =
     mode === 'dark'
       ? 'hsla(220, 30%, 5%, 0.7) 0px 4px 16px 0px, hsla(220, 25%, 10%, 0.8) 0px 8px 16px -5px'

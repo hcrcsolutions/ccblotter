@@ -2,14 +2,12 @@
 
 import * as React from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, GridReadyEvent, GridApi } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry, themeQuartz } from 'ag-grid-community';
+import type { ColDef } from 'ag-grid-community';
+import { themeQuartz } from 'ag-grid-community';
 import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import type { Call } from '../../types';
-
-// Register AG Grid modules
-ModuleRegistry.registerModules([AllCommunityModule]);
+import '../../lib/agGridSetup';
 
 /**
  * Format duration from seconds to HH:MM:SS
@@ -137,10 +135,6 @@ export function CallBlotter({ calls }: CallBlotterProps) {
     });
   }, [theme]);
 
-  const onGridReady = React.useCallback((params: GridReadyEvent) => {
-    // Grid is ready
-  }, []);
-
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
       <AgGridReact<CallWithDuration>
@@ -149,7 +143,6 @@ export function CallBlotter({ calls }: CallBlotterProps) {
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         theme={gridTheme}
-        onGridReady={onGridReady}
         rowBuffer={20}
         animateRows={false}
         getRowId={(params) => params.data.id}

@@ -27,6 +27,7 @@ const initialState: DashboardState = {
     errorMessage: null,
   },
   connectionState: 'connecting',
+  reconnect: () => {},
 };
 
 const WebSocketContext = createContext<DashboardState>(initialState);

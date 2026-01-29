@@ -17,7 +17,7 @@ import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
-import Divider from '@mui/material/Divider';
+import { useWebSocketContext } from '../../context/WebSocketContext';
 
 const STORAGE_KEY = 'oscc-admin-settings';
 
@@ -79,6 +79,7 @@ export default function SettingsPage() {
   const [newUrl, setNewUrl] = React.useState('');
   const [saved, setSaved] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const { reconnect } = useWebSocketContext();
 
   // Load settings on mount
   React.useEffect(() => {
@@ -92,6 +93,8 @@ export default function SettingsPage() {
     setSettings(newSettings);
     saveSettings(newSettings);
     setSaved(true);
+    // Reconnect WebSocket to new backend
+    reconnect();
   };
 
   const handleDeleteConfig = (configName: string) => {
