@@ -151,6 +151,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
               easing: theme.transitions.easing.sharp,
               duration: theme.transitions.duration.leavingScreen,
             }),
+          bgcolor: 'background.paper',
         }}
         color="default"
         elevation={1}
@@ -179,6 +180,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
           '& .MuiDrawer-paper': {
             width: drawerWidth,
             boxSizing: 'border-box',
+            bgcolor: 'background.paper',
             transition: (theme) =>
               theme.transitions.create('width', {
                 easing: theme.transitions.easing.sharp,
