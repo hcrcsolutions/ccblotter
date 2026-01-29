@@ -15,7 +15,7 @@ import PhoneIcon from '@mui/icons-material/Phone';
 // Navigation configuration for sidebar
 const NAVIGATION: Navigation = [
   {
-    segment: '',
+    segment: 'agents',
     title: 'Agents',
     icon: <GroupIcon />,
   },
@@ -28,7 +28,7 @@ const NAVIGATION: Navigation = [
 
 // Page titles based on pathname
 const PAGE_TITLES: Record<string, string> = {
-  '/': 'Agents',
+  '/agents': 'Agents',
   '/calls': 'Calls',
 };
 
