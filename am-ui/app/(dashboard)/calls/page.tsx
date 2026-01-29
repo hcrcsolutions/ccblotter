@@ -14,7 +14,7 @@ import QueueIcon from '@mui/icons-material/Queue';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useWebSocketContext } from '../../context/WebSocketContext';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 import type { Call, QueuedCall, CallState } from '../../types';
 
@@ -202,7 +202,7 @@ function WaitTimeCellRenderer(params: ICellRendererParams) {
 
 export default function CallsPage() {
   const theme = useTheme();
-  const { calls, queuedCalls, queueStats, systemStatus, connectionState } = useWebSocket();
+  const { calls, queuedCalls, queueStats, systemStatus, connectionState } = useWebSocketContext();
 
   const queuedGridRef = React.useRef<AgGridReact>(null);
   const activeGridRef = React.useRef<AgGridReact>(null);

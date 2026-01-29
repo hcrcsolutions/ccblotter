@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import { useWebSocket } from '../../hooks/useWebSocket';
+import { useWebSocketContext } from '../../context/WebSocketContext';
 import { AgentStatusCards } from '../../components/AgentStatusCards/AgentStatusCards';
 import { AgentGrid } from '../../components/AgentGrid/AgentGrid';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
@@ -14,7 +14,7 @@ export default function AgentsPage() {
     summary,
     systemStatus,
     connectionState,
-  } = useWebSocket();
+  } = useWebSocketContext();
 
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 
