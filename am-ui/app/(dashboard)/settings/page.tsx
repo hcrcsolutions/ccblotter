@@ -19,7 +19,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
 import Divider from '@mui/material/Divider';
 
-const STORAGE_KEY = 'agent-monitor-settings';
+const STORAGE_KEY = 'oscc-admin-settings';
 
 interface BackendConfig {
   name: string;

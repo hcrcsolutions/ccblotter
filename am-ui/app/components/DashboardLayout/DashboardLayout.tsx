@@ -55,7 +55,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
   const pathname = usePathname();
   const { mode, toggleTheme } = useThemeContext();
 
-  const pageTitle = PAGE_TITLES[pathname] || 'Agent Monitor';
+  const pageTitle = PAGE_TITLES[pathname] || 'OSCC Admin';
 
   const handleDrawerToggle = () => {
     setDrawerOpen(!drawerOpen);
@@ -78,7 +78,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <PhoneIcon color="primary" />
             <Typography variant="h6" noWrap color="primary">
-              Agent Monitor
+              OSCC Admin
             </Typography>
           </Box>
         )}

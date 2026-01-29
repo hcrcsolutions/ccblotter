@@ -14,7 +14,7 @@ import type {
   DashboardState,
 } from '../types';
 
-const STORAGE_KEY = 'agent-monitor-settings';
+const STORAGE_KEY = 'oscc-admin-settings';
 const DEFAULT_BACKEND_URL = 'https://localhost:8443';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;

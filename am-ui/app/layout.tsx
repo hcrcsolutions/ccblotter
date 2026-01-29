@@ -3,7 +3,7 @@ import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter';
 import { ThemeProvider } from './context/ThemeContext';
 
 export const metadata = {
-  title: 'Agent Monitor - Call Center Dashboard',
+  title: 'OSCC Admin - Call Center Dashboard',
 };
 
 export default function RootLayout({

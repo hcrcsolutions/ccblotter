@@ -18,7 +18,7 @@ const ThemeContext = createContext<ThemeContextType>({
   toggleTheme: () => {},
 });
 
-const STORAGE_KEY = 'agent-monitor-theme';
+const STORAGE_KEY = 'oscc-admin-theme';
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>('light');
