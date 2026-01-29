@@ -14,10 +14,36 @@ import type {
   DashboardState,
 } from '../types';
 
-const WS_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:8080/ws';
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api';
+const STORAGE_KEY = 'agent-monitor-settings';
+const DEFAULT_BACKEND_URL = 'https://localhost:8443';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
+
+function getBackendUrl(): string {
+  if (typeof window === 'undefined') return DEFAULT_BACKEND_URL;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const settings = JSON.parse(stored);
+      // Handle new format with multiple configs
+      if (settings.configs && settings.activeConfigName) {
+        const activeConfig = settings.configs.find(
+          (c: { name: string; url: string }) => c.name === settings.activeConfigName
+        );
+        if (activeConfig) {
+          return activeConfig.url;
+        }
+      }
+      // Handle old format with just backendUrl
+      if (settings.backendUrl) {
+        return settings.backendUrl;
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load backend URL from settings:', e);
+  }
+  return DEFAULT_BACKEND_URL;
+}
 
 const initialSummary: AgentSummary = {
   online: 0,
@@ -64,14 +90,15 @@ export function useWebSocket(): DashboardState {
   // Fetch initial data via REST API
   const fetchInitialData = useCallback(async () => {
     try {
-      console.log('Fetching initial data via REST API...');
+      const apiUrl = `${getBackendUrl()}/api`;
+      console.log('Fetching initial data via REST API...', apiUrl);
 
       const [agentsRes, callsRes, queueRes, summaryRes, healthRes] = await Promise.all([
-        fetch(`${API_URL}/agents`),
-        fetch(`${API_URL}/calls`),
-        fetch(`${API_URL}/queue`),
-        fetch(`${API_URL}/agents/summary`),
-        fetch(`${API_URL}/health`),
+        fetch(`${apiUrl}/agents`),
+        fetch(`${apiUrl}/calls`),
+        fetch(`${apiUrl}/queue`),
+        fetch(`${apiUrl}/agents/summary`),
+        fetch(`${apiUrl}/health`),
       ]);
 
       if (agentsRes.ok) {
@@ -115,8 +142,11 @@ export function useWebSocket(): DashboardState {
 
     setConnectionState('connecting');
 
+    const wsUrl = `${getBackendUrl()}/ws`;
+    console.log('Connecting to WebSocket:', wsUrl);
+
     const client = new Client({
-      webSocketFactory: () => new SockJS(WS_URL),
+      webSocketFactory: () => new SockJS(wsUrl),
       reconnectDelay: 0, // We handle reconnection manually
 
       onConnect: () => {

@@ -11,6 +11,7 @@ import getMPTheme from '@/theme/getMPTheme';
 import GroupIcon from '@mui/icons-material/Group';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import PhoneIcon from '@mui/icons-material/Phone';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 // Navigation configuration for sidebar
 const NAVIGATION: Navigation = [
@@ -24,12 +25,18 @@ const NAVIGATION: Navigation = [
     title: 'Calls',
     icon: <PhoneInTalkIcon />,
   },
+  {
+    segment: 'settings',
+    title: 'Settings',
+    icon: <SettingsIcon />,
+  },
 ];
 
 // Page titles based on pathname
 const PAGE_TITLES: Record<string, string> = {
   '/agents': 'Agents',
   '/calls': 'Calls',
+  '/settings': 'Settings',
 };
 
 // Logo component for sidebar
