@@ -21,6 +21,7 @@ import {
   isValidQueueMessage,
   safeParseJson,
 } from '../lib/typeValidation';
+import { isServer, getLocalStorageItem, removeLocalStorageItem } from '../lib/ssr';
 
 const STORAGE_KEY = 'oscc-admin-settings';
 const DEFAULT_BACKEND_URL = 'https://localhost:8443';
@@ -28,9 +29,9 @@ const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
 
 function getBackendUrl(): string {
-  if (typeof window === 'undefined') return DEFAULT_BACKEND_URL;
+  if (isServer()) return DEFAULT_BACKEND_URL;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getLocalStorageItem(STORAGE_KEY);
     if (stored) {
       const settings = JSON.parse(stored);
       // Validate settings structure
@@ -59,11 +60,7 @@ function getBackendUrl(): string {
   } catch (e) {
     console.error('Corrupted settings in localStorage, using default:', e);
     // Clear corrupted data to prevent repeated errors
-    try {
-      localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore localStorage errors during cleanup
-    }
+    removeLocalStorageItem(STORAGE_KEY);
   }
   return DEFAULT_BACKEND_URL;
 }

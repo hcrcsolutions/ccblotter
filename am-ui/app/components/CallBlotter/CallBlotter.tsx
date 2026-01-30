@@ -8,40 +8,7 @@ import Box from '@mui/material/Box';
 import { useTheme } from '@mui/material/styles';
 import type { Call } from '../../types';
 import '../../lib/agGridSetup';
-
-/**
- * Format duration from seconds to HH:MM:SS
- */
-function formatDuration(seconds: number): string {
-  if (seconds < 0) return '0:00';
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  if (hours > 0) {
-    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }
-  return `${minutes}:${secs.toString().padStart(2, '0')}`;
-}
-
-/**
- * Calculate duration in seconds from start time.
- * Returns 0 for invalid or future timestamps.
- */
-function calculateDuration(startTime: string): number {
-  const start = new Date(startTime).getTime();
-
-  // Check for invalid date
-  if (isNaN(start)) {
-    return 0;
-  }
-
-  const now = Date.now();
-  const duration = Math.floor((now - start) / 1000);
-
-  // Return 0 for future timestamps (clock skew protection)
-  return duration < 0 ? 0 : duration;
-}
+import { formatDuration, calculateDuration } from '../../lib/formatters';
 
 interface CallWithDuration extends Call {
   duration: number;
@@ -99,7 +66,7 @@ export function CallBlotter({ calls }: CallBlotterProps) {
       filter: 'agNumberColumnFilter',
       sortable: true,
       width: 120,
-      valueFormatter: (params) => formatDuration(params.value || 0),
+      valueFormatter: (params) => formatDuration(params.value || 0, 'short'),
     },
   ], []);
 
@@ -114,7 +81,7 @@ export function CallBlotter({ calls }: CallBlotterProps) {
     const updateDurations = () => {
       const updatedRows = calls.map((call) => ({
         ...call,
-        duration: calculateDuration(call.startTime),
+        duration: calculateDuration(call.startTime) ?? 0,
       }));
       setRowData(updatedRows);
     };

@@ -19,33 +19,7 @@ import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 import type { Call, CallState } from '../../types';
 import '../../lib/agGridSetup';
 import { CALL_STATE_COLORS, PRIORITY_COLORS } from '../../lib/statusColors';
-
-function formatDuration(seconds: number | null): string {
-  if (seconds == null || seconds < 0) return '-';
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  }
-  return `${secs}s`;
-}
-
-function calculateDuration(timestamp: string | null): number | null {
-  if (!timestamp) return null;
-
-  const start = new Date(timestamp).getTime();
-
-  // Check for invalid date
-  if (isNaN(start)) {
-    return null;
-  }
-
-  const now = Date.now();
-  const duration = Math.floor((now - start) / 1000);
-
-  // Return 0 for future timestamps (clock skew protection)
-  return duration < 0 ? 0 : duration;
-}
+import { formatDuration, calculateDuration } from '../../lib/formatters';
 
 // Summary card component
 interface SummaryCardProps {

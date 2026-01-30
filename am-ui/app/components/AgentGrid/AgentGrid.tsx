@@ -11,63 +11,7 @@ import { useTheme } from '@mui/material/styles';
 import type { Agent, Call, AgentState } from '../../types';
 import '../../lib/agGridSetup';
 import { AGENT_STATUS_COLORS } from '../../lib/statusColors';
-
-/**
- * Format duration from seconds to human readable string
- */
-function formatDuration(seconds: number | null): string {
-  if (seconds == null || seconds < 0) return '-';
-
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  if (minutes > 0) {
-    return `${minutes}m ${secs}s`;
-  }
-  return `${secs}s`;
-}
-
-/**
- * Format time as HH:MM:SS
- */
-function formatTime(timestamp: string | null): string {
-  if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
-
-/**
- * Calculate duration in seconds from a timestamp to now.
- * Returns null for invalid inputs, 0 for future timestamps.
- */
-function calculateDuration(timestamp: string | null): number | null {
-  if (!timestamp) return null;
-
-  const start = new Date(timestamp).getTime();
-
-  // Check for invalid date
-  if (isNaN(start)) {
-    console.warn('Invalid timestamp format:', timestamp);
-    return null;
-  }
-
-  const now = Date.now();
-  const duration = Math.floor((now - start) / 1000);
-
-  // Return 0 for future timestamps (clock skew protection)
-  if (duration < 0) {
-    return 0;
-  }
-
-  return duration;
-}
+import { formatDuration, formatTime, calculateDuration } from '../../lib/formatters';
 
 // Status cell renderer with colored chip
 function StatusCellRenderer(params: ICellRendererParams<AgentRowData>) {

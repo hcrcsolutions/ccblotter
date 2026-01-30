@@ -19,6 +19,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocketContext } from '../../context/WebSocketContext';
+import { isServer, getLocalStorageItem, setLocalStorageItem } from '../../lib/ssr';
 
 const STORAGE_KEY = 'oscc-admin-settings';
 
@@ -43,9 +44,9 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 function getStoredSettings(): Settings {
-  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+  if (isServer()) return DEFAULT_SETTINGS;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = getLocalStorageItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Migration: handle old format with just backendUrl
@@ -58,7 +59,13 @@ function getStoredSettings(): Settings {
           ],
         };
       }
-      return { ...DEFAULT_SETTINGS, ...parsed };
+      const merged = { ...DEFAULT_SETTINGS, ...parsed };
+      // Validate that activeConfigName points to a valid config
+      if (!merged.configs.some((c: BackendConfig) => c.name === merged.activeConfigName)) {
+        // Fall back to first config if active config is missing
+        merged.activeConfigName = merged.configs[0]?.name ?? DEFAULT_SETTINGS.activeConfigName;
+      }
+      return merged;
     }
   } catch (e) {
     console.error('Failed to load settings:', e);
@@ -67,10 +74,9 @@ function getStoredSettings(): Settings {
 }
 
 function saveSettings(settings: Settings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch (e) {
-    console.error('Failed to save settings:', e);
+  const success = setLocalStorageItem(STORAGE_KEY, JSON.stringify(settings));
+  if (!success) {
+    console.error('Failed to save settings: localStorage unavailable');
   }
 }
 
@@ -87,7 +93,10 @@ export default function SettingsPage() {
     setSettings(getStoredSettings());
   }, []);
 
-  const activeConfig = settings.configs.find(c => c.name === settings.activeConfigName);
+  // Find active config with fallback to first config if not found
+  const activeConfig = settings.configs.find(c => c.name === settings.activeConfigName)
+    ?? settings.configs[0]
+    ?? DEFAULT_CONFIGS[0];
 
   const handleSelectConfig = (configName: string) => {
     const newSettings = { ...settings, activeConfigName: configName };
@@ -166,11 +175,9 @@ export default function SettingsPage() {
             Active Backend
           </Typography>
 
-          {activeConfig && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <strong>{activeConfig.name}</strong>: {activeConfig.url}
-            </Alert>
-          )}
+          <Alert severity="info" sx={{ mb: 2 }}>
+            <strong>{activeConfig.name}</strong>: {activeConfig.url}
+          </Alert>
 
           <Typography variant="body2" color="text.secondary">
             Changes will take effect after refreshing the page.
