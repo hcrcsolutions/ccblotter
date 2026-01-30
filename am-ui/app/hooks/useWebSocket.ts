@@ -13,6 +13,14 @@ import type {
   ConnectionState,
   DashboardState,
 } from '../types';
+import {
+  isValidAgentArray,
+  isValidCallArray,
+  isValidAgentSummary,
+  isValidSystemStatus,
+  isValidQueueMessage,
+  safeParseJson,
+} from '../lib/typeValidation';
 
 const STORAGE_KEY = 'oscc-admin-settings';
 const DEFAULT_BACKEND_URL = 'https://localhost:8443';
@@ -25,22 +33,37 @@ function getBackendUrl(): string {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const settings = JSON.parse(stored);
+      // Validate settings structure
+      if (typeof settings !== 'object' || settings === null) {
+        throw new Error('Invalid settings format: not an object');
+      }
       // Handle new format with multiple configs
-      if (settings.configs && settings.activeConfigName) {
+      if (Array.isArray(settings.configs) && typeof settings.activeConfigName === 'string') {
         const activeConfig = settings.configs.find(
-          (c: { name: string; url: string }) => c.name === settings.activeConfigName
+          (c: unknown): c is { name: string; url: string } =>
+            typeof c === 'object' &&
+            c !== null &&
+            typeof (c as { name?: unknown }).name === 'string' &&
+            typeof (c as { url?: unknown }).url === 'string' &&
+            (c as { name: string }).name === settings.activeConfigName
         );
-        if (activeConfig) {
+        if (activeConfig && activeConfig.url) {
           return activeConfig.url;
         }
       }
       // Handle old format with just backendUrl
-      if (settings.backendUrl) {
+      if (typeof settings.backendUrl === 'string' && settings.backendUrl) {
         return settings.backendUrl;
       }
     }
   } catch (e) {
-    console.error('Failed to load backend URL from settings:', e);
+    console.error('Corrupted settings in localStorage, using default:', e);
+    // Clear corrupted data to prevent repeated errors
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Ignore localStorage errors during cleanup
+    }
   }
   return DEFAULT_BACKEND_URL;
 }
@@ -221,56 +244,56 @@ export function useWebSocket(): DashboardState {
         // Subscribe to all topics and store references for cleanup
         const agentsSub = client.subscribe('/topic/agents', (message: IMessage) => {
           if (!isMountedRef.current) return;
-          try {
-            const data = JSON.parse(message.body) as Agent[];
+          const data = safeParseJson(message.body, isValidAgentArray);
+          if (data) {
             setAgents(data);
-          } catch (e) {
-            console.error('Failed to parse agents message', e);
+          } else {
+            console.error('Invalid agents data received from WebSocket');
           }
         });
         subscriptionsRef.current.push(agentsSub);
 
         const callsSub = client.subscribe('/topic/calls', (message: IMessage) => {
           if (!isMountedRef.current) return;
-          try {
-            const data = JSON.parse(message.body) as Call[];
+          const data = safeParseJson(message.body, isValidCallArray);
+          if (data) {
             setCalls(data);
-          } catch (e) {
-            console.error('Failed to parse calls message', e);
+          } else {
+            console.error('Invalid calls data received from WebSocket');
           }
         });
         subscriptionsRef.current.push(callsSub);
 
         const summarySub = client.subscribe('/topic/summary', (message: IMessage) => {
           if (!isMountedRef.current) return;
-          try {
-            const data = JSON.parse(message.body) as AgentSummary;
+          const data = safeParseJson(message.body, isValidAgentSummary);
+          if (data) {
             setSummary(data);
-          } catch (e) {
-            console.error('Failed to parse summary message', e);
+          } else {
+            console.error('Invalid summary data received from WebSocket');
           }
         });
         subscriptionsRef.current.push(summarySub);
 
         const systemSub = client.subscribe('/topic/system', (message: IMessage) => {
           if (!isMountedRef.current) return;
-          try {
-            const data = JSON.parse(message.body) as SystemStatus;
+          const data = safeParseJson(message.body, isValidSystemStatus);
+          if (data) {
             setSystemStatus(data);
-          } catch (e) {
-            console.error('Failed to parse system status message', e);
+          } else {
+            console.error('Invalid system status data received from WebSocket');
           }
         });
         subscriptionsRef.current.push(systemSub);
 
         const queueSub = client.subscribe('/topic/queue', (message: IMessage) => {
           if (!isMountedRef.current) return;
-          try {
-            const data = JSON.parse(message.body) as { calls: QueuedCall[]; stats: QueueStats };
+          const data = safeParseJson(message.body, isValidQueueMessage);
+          if (data) {
             setQueuedCalls(data.calls || []);
             setQueueStats(data.stats || initialQueueStats);
-          } catch (e) {
-            console.error('Failed to parse queue message', e);
+          } else {
+            console.error('Invalid queue data received from WebSocket');
           }
         });
         subscriptionsRef.current.push(queueSub);

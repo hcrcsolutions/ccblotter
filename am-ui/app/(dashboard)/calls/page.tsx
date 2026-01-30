@@ -334,17 +334,21 @@ export default function CallsPage() {
     isDarkMode: theme.palette.mode === 'dark',
   }), [theme.palette.mode]);
 
-  // Refresh cells on theme change
-  const prevModeRef = React.useRef(theme.palette.mode);
+  // Refresh cells when grid context changes (theme mode)
+  // Using a ref to track if this is the initial render
+  const isInitialRenderRef = React.useRef(true);
   React.useEffect(() => {
-    if (prevModeRef.current !== theme.palette.mode) {
-      prevModeRef.current = theme.palette.mode;
-      setTimeout(() => {
-        queuedGridRef.current?.api?.refreshCells({ force: true });
-        activeGridRef.current?.api?.refreshCells({ force: true });
-      }, 0);
+    // Skip the initial render to avoid unnecessary refresh
+    if (isInitialRenderRef.current) {
+      isInitialRenderRef.current = false;
+      return;
     }
-  }, [theme.palette.mode]);
+    // Use requestAnimationFrame to ensure grid context is updated before refresh
+    requestAnimationFrame(() => {
+      queuedGridRef.current?.api?.refreshCells({ force: true });
+      activeGridRef.current?.api?.refreshCells({ force: true });
+    });
+  }, [gridContext]);
 
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 

@@ -12,6 +12,11 @@ interface ConnectionStatusProps {
   state: ConnectionState;
 }
 
+// Exhaustive check helper - TypeScript will error if a case is missing
+function assertNever(value: never): never {
+  throw new Error(`Unhandled connection state: ${value}`);
+}
+
 export function ConnectionStatus({ state }: ConnectionStatusProps) {
   const getStatusConfig = () => {
     switch (state) {
@@ -40,11 +45,8 @@ export function ConnectionStatus({ state }: ConnectionStatusProps) {
           icon: <ErrorIcon />,
         };
       default:
-        return {
-          label: 'Unknown',
-          color: 'default' as const,
-          icon: null,
-        };
+        // TypeScript will error here if a ConnectionState case is not handled above
+        return assertNever(state);
     }
   };
 

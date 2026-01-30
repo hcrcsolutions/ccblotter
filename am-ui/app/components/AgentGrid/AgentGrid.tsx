@@ -340,26 +340,27 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
     });
   }, [theme]);
 
-  // Track previous theme mode to detect changes
-  const prevModeRef = React.useRef(theme.palette.mode);
-
   // Pass dark mode to cell renderers via context
   const gridContext = React.useMemo(() => ({
     isDarkMode: theme.palette.mode === 'dark',
   }), [theme.palette.mode]);
 
-  // Force refresh cells when theme changes to update pill colors
+  // Force refresh cells when grid context changes to update pill colors
+  // Using a ref to track if this is the initial render
+  const isInitialRenderRef = React.useRef(true);
   React.useEffect(() => {
-    if (prevModeRef.current !== theme.palette.mode) {
-      prevModeRef.current = theme.palette.mode;
-      // Use setTimeout to avoid render loop
-      setTimeout(() => {
-        if (gridRef.current?.api) {
-          gridRef.current.api.refreshCells({ force: true });
-        }
-      }, 0);
+    // Skip the initial render to avoid unnecessary refresh
+    if (isInitialRenderRef.current) {
+      isInitialRenderRef.current = false;
+      return;
     }
-  }, [theme.palette.mode]);
+    // Use requestAnimationFrame to ensure grid context is updated before refresh
+    requestAnimationFrame(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    });
+  }, [gridContext]);
 
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
