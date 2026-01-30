@@ -10,34 +10,7 @@ import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import type { Agent, Call, AgentState } from '../../types';
 import '../../lib/agGridSetup';
-
-// Status colors with light and dark mode variants
-const STATUS_COLORS: Record<AgentState, {
-  light: { bg: string; text: string };
-  dark: { bg: string; text: string };
-  label: string
-}> = {
-  ONLINE: {
-    light: { bg: 'hsl(120, 80%, 92%)', text: 'hsl(120, 59%, 30%)' },
-    dark: { bg: 'hsl(120, 50%, 20%)', text: 'hsl(120, 70%, 65%)' },
-    label: 'Online'
-  },
-  ON_CALL: {
-    light: { bg: 'hsl(210, 100%, 92%)', text: 'hsl(210, 98%, 42%)' },
-    dark: { bg: 'hsl(210, 60%, 25%)', text: 'hsl(210, 100%, 70%)' },
-    label: 'On Call'
-  },
-  AWAY: {
-    light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(45, 90%, 35%)' },
-    dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(45, 100%, 65%)' },
-    label: 'Away'
-  },
-  UNAVAILABLE: {
-    light: { bg: 'hsl(0, 100%, 92%)', text: 'hsl(0, 90%, 40%)' },
-    dark: { bg: 'hsl(0, 50%, 22%)', text: 'hsl(0, 90%, 70%)' },
-    label: 'Unavailable'
-  },
-};
+import { AGENT_STATUS_COLORS } from '../../lib/statusColors';
 
 /**
  * Format duration from seconds to human readable string
@@ -71,19 +44,35 @@ function formatTime(timestamp: string | null): string {
 }
 
 /**
- * Calculate duration in seconds from a timestamp to now
+ * Calculate duration in seconds from a timestamp to now.
+ * Returns null for invalid inputs, 0 for future timestamps.
  */
 function calculateDuration(timestamp: string | null): number | null {
   if (!timestamp) return null;
+
   const start = new Date(timestamp).getTime();
+
+  // Check for invalid date
+  if (isNaN(start)) {
+    console.warn('Invalid timestamp format:', timestamp);
+    return null;
+  }
+
   const now = Date.now();
-  return Math.floor((now - start) / 1000);
+  const duration = Math.floor((now - start) / 1000);
+
+  // Return 0 for future timestamps (clock skew protection)
+  if (duration < 0) {
+    return 0;
+  }
+
+  return duration;
 }
 
 // Status cell renderer with colored chip
 function StatusCellRenderer(params: ICellRendererParams<AgentRowData>) {
   const status = params.value as AgentState;
-  const config = STATUS_COLORS[status];
+  const config = AGENT_STATUS_COLORS[status];
   const isDark = params.context?.isDarkMode;
   const colors = isDark ? config.dark : config.light;
 
@@ -169,12 +158,19 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
   const gridRef = React.useRef<AgGridReact<AgentRowData>>(null);
   const [rowData, setRowData] = React.useState<AgentRowData[]>([]);
 
+  // Create a stable key for calls array to optimize memoization
+  // Only recompute map when actual call data changes, not just array reference
+  const callsKey = React.useMemo(() => {
+    return calls.map(c => `${c.agentId}:${c.id}`).join(',');
+  }, [calls]);
+
   // Create a map of agentId -> call for quick lookup
   const callsByAgent = React.useMemo(() => {
     const map = new Map<string, Call>();
     calls.forEach(call => map.set(call.agentId, call));
     return map;
-  }, [calls]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [callsKey]);
 
   // Column definitions
   const columnDefs = React.useMemo<ColDef<AgentRowData>[]>(() => [
@@ -201,7 +197,7 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
       sortable: true,
       width: 120,
       cellRenderer: StatusCellRenderer,
-      filterValueGetter: (params: ValueGetterParams<AgentRowData>) => STATUS_COLORS[params.data?.state as AgentState]?.label || '',
+      filterValueGetter: (params: ValueGetterParams<AgentRowData>) => AGENT_STATUS_COLORS[params.data?.state as AgentState]?.label || '',
     },
     {
       field: 'timeInStatus',

@@ -111,6 +111,8 @@ export function useWebSocket(): DashboardState {
   const reconnectAttempts = useRef(0);
   const reconnectTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMountedRef = useRef(true);
+  const parseErrorCount = useRef(0);
+  const PARSE_ERROR_THRESHOLD = 5; // Trigger disconnect after this many consecutive parse errors
 
   // Fetch initial data via REST API using Promise.allSettled for resilience
   const fetchInitialData = useCallback(async () => {
@@ -241,60 +243,62 @@ export function useWebSocket(): DashboardState {
         setConnectionState('connected');
         reconnectAttempts.current = 0;
 
+        // Helper to handle parse errors consistently
+        const handleParseResult = <T>(
+          data: T | null,
+          topic: string,
+          onSuccess: (data: T) => void
+        ) => {
+          if (data) {
+            parseErrorCount.current = 0; // Reset on success
+            onSuccess(data);
+          } else {
+            parseErrorCount.current++;
+            console.error(`Invalid ${topic} data received from WebSocket (error ${parseErrorCount.current}/${PARSE_ERROR_THRESHOLD})`);
+            if (parseErrorCount.current >= PARSE_ERROR_THRESHOLD) {
+              console.error('Too many consecutive parse errors, triggering reconnect');
+              parseErrorCount.current = 0;
+              handleDisconnect();
+            }
+          }
+        };
+
         // Subscribe to all topics and store references for cleanup
         const agentsSub = client.subscribe('/topic/agents', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidAgentArray);
-          if (data) {
-            setAgents(data);
-          } else {
-            console.error('Invalid agents data received from WebSocket');
-          }
+          handleParseResult(data, 'agents', setAgents);
         });
         subscriptionsRef.current.push(agentsSub);
 
         const callsSub = client.subscribe('/topic/calls', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidCallArray);
-          if (data) {
-            setCalls(data);
-          } else {
-            console.error('Invalid calls data received from WebSocket');
-          }
+          handleParseResult(data, 'calls', setCalls);
         });
         subscriptionsRef.current.push(callsSub);
 
         const summarySub = client.subscribe('/topic/summary', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidAgentSummary);
-          if (data) {
-            setSummary(data);
-          } else {
-            console.error('Invalid summary data received from WebSocket');
-          }
+          handleParseResult(data, 'summary', setSummary);
         });
         subscriptionsRef.current.push(summarySub);
 
         const systemSub = client.subscribe('/topic/system', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidSystemStatus);
-          if (data) {
-            setSystemStatus(data);
-          } else {
-            console.error('Invalid system status data received from WebSocket');
-          }
+          handleParseResult(data, 'system', setSystemStatus);
         });
         subscriptionsRef.current.push(systemSub);
 
         const queueSub = client.subscribe('/topic/queue', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidQueueMessage);
-          if (data) {
-            setQueuedCalls(data.calls || []);
-            setQueueStats(data.stats || initialQueueStats);
-          } else {
-            console.error('Invalid queue data received from WebSocket');
-          }
+          handleParseResult(data, 'queue', (queueData) => {
+            setQueuedCalls(queueData.calls || []);
+            setQueueStats(queueData.stats || initialQueueStats);
+          });
         });
         subscriptionsRef.current.push(queueSub);
 

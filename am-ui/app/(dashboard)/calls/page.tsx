@@ -18,47 +18,7 @@ import { useWebSocketContext } from '../../context/WebSocketContext';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 import type { Call, CallState } from '../../types';
 import '../../lib/agGridSetup';
-
-// Status colors for call state
-const CALL_STATE_COLORS: Record<CallState, {
-  light: { bg: string; text: string };
-  dark: { bg: string; text: string };
-  label: string;
-}> = {
-  TALKING: {
-    light: { bg: 'hsl(120, 80%, 92%)', text: 'hsl(120, 59%, 30%)' },
-    dark: { bg: 'hsl(120, 50%, 20%)', text: 'hsl(120, 70%, 65%)' },
-    label: 'Talking',
-  },
-  ON_HOLD: {
-    light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(45, 90%, 35%)' },
-    dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(45, 100%, 65%)' },
-    label: 'On Hold',
-  },
-};
-
-// Priority colors
-const PRIORITY_COLORS: Record<number, {
-  light: { bg: string; text: string };
-  dark: { bg: string; text: string };
-  label: string;
-}> = {
-  1: {
-    light: { bg: 'hsl(0, 100%, 92%)', text: 'hsl(0, 90%, 40%)' },
-    dark: { bg: 'hsl(0, 50%, 22%)', text: 'hsl(0, 90%, 70%)' },
-    label: 'High',
-  },
-  2: {
-    light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(45, 90%, 35%)' },
-    dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(45, 100%, 65%)' },
-    label: 'Medium',
-  },
-  3: {
-    light: { bg: 'hsl(210, 100%, 92%)', text: 'hsl(210, 98%, 42%)' },
-    dark: { bg: 'hsl(210, 60%, 25%)', text: 'hsl(210, 100%, 70%)' },
-    label: 'Normal',
-  },
-};
+import { CALL_STATE_COLORS, PRIORITY_COLORS } from '../../lib/statusColors';
 
 function formatDuration(seconds: number | null): string {
   if (seconds == null || seconds < 0) return '-';
@@ -72,9 +32,19 @@ function formatDuration(seconds: number | null): string {
 
 function calculateDuration(timestamp: string | null): number | null {
   if (!timestamp) return null;
+
   const start = new Date(timestamp).getTime();
+
+  // Check for invalid date
+  if (isNaN(start)) {
+    return null;
+  }
+
   const now = Date.now();
-  return Math.floor((now - start) / 1000);
+  const duration = Math.floor((now - start) / 1000);
+
+  // Return 0 for future timestamps (clock skew protection)
+  return duration < 0 ? 0 : duration;
 }
 
 // Summary card component

@@ -17,6 +17,7 @@ import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckIcon from '@mui/icons-material/Check';
+import CloseIcon from '@mui/icons-material/Close';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 
 const STORAGE_KEY = 'oscc-admin-settings';
@@ -264,9 +265,19 @@ export default function SettingsPage() {
 
       <Snackbar
         open={saved}
-        autoHideDuration={3000}
+        autoHideDuration={5000}
         onClose={() => setSaved(false)}
         message="Settings saved"
+        action={
+          <IconButton
+            size="small"
+            aria-label="close"
+            color="inherit"
+            onClick={() => setSaved(false)}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        }
       />
     </Box>
   );

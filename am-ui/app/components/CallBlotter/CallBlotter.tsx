@@ -25,12 +25,22 @@ function formatDuration(seconds: number): string {
 }
 
 /**
- * Calculate duration in seconds from start time
+ * Calculate duration in seconds from start time.
+ * Returns 0 for invalid or future timestamps.
  */
 function calculateDuration(startTime: string): number {
   const start = new Date(startTime).getTime();
+
+  // Check for invalid date
+  if (isNaN(start)) {
+    return 0;
+  }
+
   const now = Date.now();
-  return Math.floor((now - start) / 1000);
+  const duration = Math.floor((now - start) / 1000);
+
+  // Return 0 for future timestamps (clock skew protection)
+  return duration < 0 ? 0 : duration;
 }
 
 interface CallWithDuration extends Call {
