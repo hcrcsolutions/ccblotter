@@ -8,7 +8,9 @@ import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import WarningIcon from '@mui/icons-material/Warning';
 import ErrorIcon from '@mui/icons-material/Error';
+import { useThemeContext } from '../../context/ThemeContext';
 import { SummaryCard } from '../SummaryCard/SummaryCard';
+import { SERVER_HEALTH_COLORS, getStatusColors } from '../../lib/statusColors';
 import type { InfrastructureSummary } from '../../types';
 
 interface InfrastructureSummaryCardsProps {
@@ -16,6 +18,14 @@ interface InfrastructureSummaryCardsProps {
 }
 
 export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCardsProps) {
+  const { mode } = useThemeContext();
+  const isDarkMode = mode === 'dark';
+
+  // Get health status colors that match node backgrounds
+  const healthyColors = getStatusColors(SERVER_HEALTH_COLORS.HEALTHY, isDarkMode);
+  const degradedColors = getStatusColors(SERVER_HEALTH_COLORS.DEGRADED, isDarkMode);
+  const unhealthyColors = getStatusColors(SERVER_HEALTH_COLORS.UNHEALTHY, isDarkMode);
+
   const cards = [
     {
       title: 'SIP Servers',
@@ -23,6 +33,8 @@ export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCar
       icon: <DnsIcon sx={{ fontSize: 32 }} />,
       color: 'hsl(210, 98%, 42%)',
       bgColor: 'hsl(210, 100%, 95%)',
+      // Border matches SIP server node border color
+      borderColor: 'hsl(210, 100%, 35%)',
     },
     {
       title: 'Media Servers',
@@ -30,6 +42,8 @@ export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCar
       icon: <VideocamIcon sx={{ fontSize: 32 }} />,
       color: 'hsl(280, 60%, 45%)',
       bgColor: 'hsl(280, 80%, 95%)',
+      // Border matches Media server node border color
+      borderColor: 'hsl(280, 70%, 35%)',
     },
     {
       title: 'Active Sessions',
@@ -42,8 +56,9 @@ export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCar
       title: 'Healthy',
       value: summary.healthyCount,
       icon: <CheckCircleIcon sx={{ fontSize: 32 }} />,
-      color: 'hsl(120, 59%, 30%)',
-      bgColor: 'hsl(120, 80%, 95%)',
+      color: healthyColors.text,
+      bgColor: healthyColors.bg,
+      cardBgColor: healthyColors.bg,
     },
   ];
 
@@ -53,8 +68,9 @@ export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCar
       title: 'Degraded',
       value: summary.degradedCount,
       icon: <WarningIcon sx={{ fontSize: 32 }} />,
-      color: 'hsl(45, 90%, 40%)',
-      bgColor: 'hsl(45, 100%, 95%)',
+      color: degradedColors.text,
+      bgColor: degradedColors.bg,
+      cardBgColor: degradedColors.bg,
     });
   }
 
@@ -63,8 +79,9 @@ export function InfrastructureSummaryCards({ summary }: InfrastructureSummaryCar
       title: 'Unhealthy',
       value: summary.unhealthyCount,
       icon: <ErrorIcon sx={{ fontSize: 32 }} />,
-      color: 'hsl(0, 90%, 40%)',
-      bgColor: 'hsl(0, 100%, 95%)',
+      color: unhealthyColors.text,
+      bgColor: unhealthyColors.bg,
+      cardBgColor: unhealthyColors.bg,
     });
   }
 

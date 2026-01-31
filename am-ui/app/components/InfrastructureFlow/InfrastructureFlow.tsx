@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -15,95 +15,66 @@ import {
 import '@xyflow/react/dist/style.css';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
-import DnsIcon from '@mui/icons-material/Dns';
-import VideocamIcon from '@mui/icons-material/Videocam';
 import { useThemeContext } from '../../context/ThemeContext';
 import { SipServerNode } from './SipServerNode';
 import { MediaServerNode } from './MediaServerNode';
 import { ServerDetailDialog } from './ServerDetailDialog';
 import { InfrastructureSummaryCards } from './InfrastructureSummaryCards';
+import { TopologyFilter } from './TopologyFilter';
 import { useAutoLayout } from './useAutoLayout';
 import type { InfrastructureTopology, InfrastructureSummary, InfrastructureNode } from '../../types';
 
-interface LegendItemProps {
-  icon?: React.ReactNode;
-  color: string;
-  bgColor: string;
-  label: string;
-}
+// =============================================================================
+// TOPOLOGY FILTERING
+// =============================================================================
+// When a node is pinned, we filter the topology to show only relevant nodes:
+// - Pin a SIP server → show that SIP + all its connected media servers
+// - Pin a Media server → show that media + all SIPs connected to it
+// =============================================================================
 
-function LegendItem({ icon, color, bgColor, label }: LegendItemProps) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-      <Box
-        sx={{
-          width: 24,
-          height: 24,
-          borderRadius: 1,
-          bgcolor: bgColor,
-          border: '2px solid',
-          borderColor: color,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        {icon}
-      </Box>
-      <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-        {label}
-      </Typography>
-    </Box>
-  );
-}
+function filterTopologyByPinnedNode(
+  topology: InfrastructureTopology,
+  pinnedNodeId: string | null
+): InfrastructureTopology {
+  if (!pinnedNodeId) {
+    return topology;
+  }
 
-function Legend({ isDarkMode }: { isDarkMode: boolean }) {
-  return (
-    <Paper
-      sx={{
-        p: 1.5,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 1,
-      }}
-      elevation={2}
-    >
-      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', mb: 0.5 }}>
-        Server Types
-      </Typography>
-      <LegendItem
-        icon={<DnsIcon sx={{ fontSize: 14, color: isDarkMode ? 'hsl(210, 90%, 70%)' : 'hsl(210, 100%, 35%)' }} />}
-        color={isDarkMode ? 'hsl(210, 90%, 70%)' : 'hsl(210, 100%, 35%)'}
-        bgColor={isDarkMode ? 'hsl(210, 70%, 25%)' : 'hsl(210, 100%, 92%)'}
-        label="SIP Server"
-      />
-      <LegendItem
-        icon={<VideocamIcon sx={{ fontSize: 14, color: isDarkMode ? 'hsl(280, 70%, 70%)' : 'hsl(280, 70%, 35%)' }} />}
-        color={isDarkMode ? 'hsl(280, 70%, 70%)' : 'hsl(280, 70%, 35%)'}
-        bgColor={isDarkMode ? 'hsl(280, 50%, 25%)' : 'hsl(280, 80%, 92%)'}
-        label="Media Server"
-      />
-      <Typography variant="caption" sx={{ fontWeight: 600, color: 'text.primary', mt: 1, mb: 0.5 }}>
-        Health Status
-      </Typography>
-      <LegendItem
-        color={isDarkMode ? 'hsl(120, 50%, 40%)' : 'hsl(120, 60%, 35%)'}
-        bgColor={isDarkMode ? 'hsl(120, 40%, 20%)' : 'hsl(120, 60%, 90%)'}
-        label="Healthy"
-      />
-      <LegendItem
-        color={isDarkMode ? 'hsl(45, 80%, 45%)' : 'hsl(45, 90%, 35%)'}
-        bgColor={isDarkMode ? 'hsl(45, 60%, 20%)' : 'hsl(45, 90%, 90%)'}
-        label="Degraded"
-      />
-      <LegendItem
-        color={isDarkMode ? 'hsl(0, 70%, 45%)' : 'hsl(0, 80%, 40%)'}
-        bgColor={isDarkMode ? 'hsl(0, 50%, 20%)' : 'hsl(0, 80%, 92%)'}
-        label="Unhealthy"
-      />
-    </Paper>
+  const pinnedNode = topology.nodes.find(n => n.id === pinnedNodeId);
+  if (!pinnedNode) {
+    return topology;
+  }
+
+  // Find all connected node IDs based on edges
+  const connectedNodeIds = new Set<string>([pinnedNodeId]);
+
+  if (pinnedNode.type === 'SIP') {
+    // SIP pinned: find all media servers connected to this SIP
+    topology.edges.forEach(edge => {
+      if (edge.sourceId === pinnedNodeId) {
+        connectedNodeIds.add(edge.targetId);
+      }
+    });
+  } else {
+    // Media pinned: find all SIP servers connected to this media
+    topology.edges.forEach(edge => {
+      if (edge.targetId === pinnedNodeId) {
+        connectedNodeIds.add(edge.sourceId);
+      }
+    });
+  }
+
+  // Filter nodes and edges
+  const filteredNodes = topology.nodes.filter(n => connectedNodeIds.has(n.id));
+  const filteredEdges = topology.edges.filter(
+    e => connectedNodeIds.has(e.sourceId) && connectedNodeIds.has(e.targetId)
   );
+
+  return {
+    nodes: filteredNodes,
+    edges: filteredEdges,
+    lastUpdated: topology.lastUpdated,
+  };
 }
 
 const nodeTypes: NodeTypes = {
@@ -114,12 +85,28 @@ const nodeTypes: NodeTypes = {
 interface InfrastructureFlowProps {
   topology: InfrastructureTopology;
   summary: InfrastructureSummary;
+  pinnedNodeId?: string | null;
+  onPinNode?: (nodeId: string) => void;
+  onClearPin?: () => void;
 }
 
-export function InfrastructureFlow({ topology, summary }: InfrastructureFlowProps) {
+export function InfrastructureFlow({
+  topology,
+  summary,
+  pinnedNodeId = null,
+  onPinNode,
+  onClearPin,
+}: InfrastructureFlowProps) {
   const { mode } = useThemeContext();
   const isDarkMode = mode === 'dark';
-  const { nodes, edges } = useAutoLayout(topology);
+
+  // Filter topology based on pinned node
+  const filteredTopology = useMemo(
+    () => filterTopologyByPinnedNode(topology, pinnedNodeId),
+    [topology, pinnedNodeId]
+  );
+
+  const { nodes, edges } = useAutoLayout(filteredTopology);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedNode, setSelectedNode] = useState<InfrastructureNode | null>(null);
@@ -132,6 +119,13 @@ export function InfrastructureFlow({ topology, summary }: InfrastructureFlowProp
   const handleDialogClose = useCallback(() => {
     setDialogOpen(false);
   }, []);
+
+  const handlePinNode = useCallback(() => {
+    if (selectedNode && onPinNode) {
+      onPinNode(selectedNode.id);
+      setDialogOpen(false);
+    }
+  }, [selectedNode, onPinNode]);
 
   if (nodes.length === 0) {
     return (
@@ -183,7 +177,7 @@ export function InfrastructureFlow({ topology, summary }: InfrastructureFlowProp
             }}
             maskColor={isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)'}
             nodeColor={(node) => {
-              const healthStatus = (node.data as InfrastructureNode)?.healthStatus;
+              const healthStatus = (node.data as unknown as InfrastructureNode)?.healthStatus;
               if (healthStatus === 'UNHEALTHY') {
                 return isDarkMode ? 'hsl(0, 70%, 45%)' : 'hsl(0, 80%, 50%)';
               }
@@ -203,16 +197,24 @@ export function InfrastructureFlow({ topology, summary }: InfrastructureFlowProp
             gap={20}
             size={1}
           />
-          <Panel position="top-right">
-            <Legend isDarkMode={isDarkMode} />
-          </Panel>
         </ReactFlow>
+        {/* Filter Panel */}
+        {onPinNode && onClearPin && (
+          <TopologyFilter
+            nodes={topology.nodes}
+            pinnedNodeId={pinnedNodeId}
+            onPinNode={onPinNode}
+            onUnpin={onClearPin}
+          />
+        )}
       </Box>
       <ServerDetailDialog
         open={dialogOpen}
         server={selectedNode}
         edges={topology.edges}
         onClose={handleDialogClose}
+        onPin={onPinNode ? handlePinNode : undefined}
+        isPinned={selectedNode?.id === pinnedNodeId}
       />
     </>
   );

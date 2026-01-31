@@ -10,76 +10,81 @@ import type { InfrastructureTopology, InfrastructureNode } from '../../types';
 
 const NODE_WIDTH = 180;          // Width of each server node in pixels
 const NODE_HEIGHT = 120;         // Height of each server node (must match rendered node)
-const H_GAP = 20;                // Horizontal gap between media nodes
+const H_GAP = 20;                // Horizontal gap between nodes
 const V_GAP = 40;                // Vertical gap between rows (allows edge routing)
-const SIP_TO_MEDIA_GAP = 250;    // Horizontal gap between SIP column and media grid
-const SIP_GROUP_GAP = 120;       // Vertical gap between different SIP server groups
+const SIP_TO_MEDIA_GAP = 300;    // Horizontal gap between SIP column and media grid
+const SIP_V_GAP = 60;            // Vertical gap between SIP servers
 
 // =============================================================================
-// GRID LAYOUT STRATEGY
+// LAYOUT STRATEGY: SHARED MEDIA SERVER SUPPORT
 // =============================================================================
 //
-// Media servers are arranged in a responsive grid that adapts based on count:
+// This layout supports a many-to-many relationship between SIP and Media servers.
+// Multiple SIP servers can connect to the same Media server.
 //
-// PHASE 1: SQUARE FORMATION (1-9 servers)
-// ----------------------------------------
-// For small groups, we arrange servers in a square-like formation for
-// visual compactness. The grid grows as follows:
+// VISUAL STRUCTURE:
+// -----------------
 //
-//   Count  | Grid   | Visual
-//   -------|--------|------------------
-//   1      | 1x1    | [M]
-//   2      | 2x1    | [M][M]
-//   3      | 2x2    | [M][M]
-//          |        | [M]
-//   4      | 2x2    | [M][M]
-//          |        | [M][M]
-//   5-6    | 3x2    | [M][M][M]
-//          |        | [M][M][M]
-//   7-9    | 3x3    | [M][M][M]
-//          |        | [M][M][M]
-//          |        | [M][M][M]
+//   [SIP-1] ───────────┬───────────────► [M1] [M2] [M3] ... [M11]
+//                      │   ┌───────────► [M12][M13][M14]... [M22]
+//   [SIP-2] ───────────┼───┤             [M23][M24][M25]... [M33]
+//                      │   │             ...
+//   [SIP-3] ───────────┘   │             [M111][M112]...[M120]
+//                          │
+//   [SIP-4] ────────────────┘            (square-ish grid)
 //
-// PHASE 2: EXTENDED ROWS (10+ servers)
-// ----------------------------------------
-// Once we exceed 9 servers, we switch to a wider row-based layout
-// with 10 servers per row. This provides a clear visual structure
-// for larger deployments:
+// KEY DESIGN DECISIONS:
+// ---------------------
+// 1. SIP servers are positioned in a column on the LEFT
+//    - Stacked vertically with consistent spacing
+//    - Centered vertically relative to the media grid
 //
-//   Count  | Grid   | Visual
-//   -------|--------|----------------------------------
-//   10-19  | 10xN   | [M][M][M][M][M][M][M][M][M][M]
-//          |        | [M][M]...
-//   20-29  | 10xN   | [M][M][M][M][M][M][M][M][M][M]
-//          |        | [M][M][M][M][M][M][M][M][M][M]
-//          |        | [M][M]...
-//   etc.
+// 2. Media servers are positioned in a SQUARE-ISH grid on the RIGHT
+//    - Independent of SIP grouping (not nested under SIPs)
+//    - Each media server appears ONCE, even if connected to multiple SIPs
+//    - Grid columns = ceil(sqrt(count)) for a square-like shape
+//    - 120 servers → 11x11 grid (121 slots, 120 filled)
 //
-// This two-phase approach ensures:
-// - Small groups look compact and organized (square)
-// - Large groups remain readable with consistent row widths
-// - The SIP server is always centered vertically relative to its media group
+// 3. Edges connect SIPs to their media servers
+//    - Bezier curves provide clear visual routing
+//    - Multiple edges can target the same media server
+//    - Edge opacity allows overlapping edges to remain visible
+//
+// GRID SIZING (square-ish):
+// -------------------------
+//   Count  | Columns | Rows  | Shape
+//   -------|---------|-------|-------
+//   4      | 2       | 2     | 2x2
+//   9      | 3       | 3     | 3x3
+//   20     | 5       | 4     | 5x4
+//   50     | 8       | 7     | ~square
+//   100    | 10      | 10    | 10x10
+//   120    | 11      | 11    | 11x11
 //
 // =============================================================================
-
-const SQUARE_THRESHOLD = 9;      // Max servers for square formation
-const EXTENDED_ROW_WIDTH = 10;   // Servers per row after square threshold
 
 /**
- * Calculate the number of columns for the media server grid.
- * Uses square formation for small groups, extended rows for larger groups.
+ * Calculate the number of columns for a square-ish media server grid.
+ *
+ * Goal: Keep the grid as close to square as possible for any count.
+ *
+ * Examples:
+ *   Count | Columns | Rows | Shape
+ *   ------|---------|------|-------
+ *   1-3   | 1-2     | 1-2  | Small square
+ *   4     | 2       | 2    | 2x2
+ *   9     | 3       | 3    | 3x3
+ *   16    | 4       | 4    | 4x4
+ *   20    | 5       | 4    | 5x4
+ *   50    | 8       | 7    | ~square
+ *   100   | 10      | 10   | 10x10
+ *   120   | 11      | 11   | 11x11
  */
 function calculateGridColumns(serverCount: number): number {
   if (serverCount <= 0) return 1;
 
-  if (serverCount <= SQUARE_THRESHOLD) {
-    // Square formation: use ceiling of square root, capped at 3
-    // 1→1, 2→2, 3-4→2, 5-9→3
-    return Math.min(3, Math.ceil(Math.sqrt(serverCount)));
-  }
-
-  // Extended row formation for larger groups
-  return EXTENDED_ROW_WIDTH;
+  // Use ceiling of square root for a square-ish grid
+  return Math.ceil(Math.sqrt(serverCount));
 }
 
 // Type for our custom node data
@@ -91,14 +96,15 @@ interface LayoutResult {
 }
 
 /**
- * Hook for laying out infrastructure nodes in a tree structure.
+ * Hook for laying out infrastructure nodes with shared media server support.
  *
  * Layout structure:
- * - SIP servers positioned on the left column
- * - Each SIP's media servers arranged in a grid to the right
- * - Grid uses square formation (up to 3x3) for small groups
- * - Grid expands to 10-column rows for larger deployments
- * - Bezier curve edges connect each SIP to its media servers
+ * - SIP servers: vertical column on the left, centered relative to media grid
+ * - Media servers: independent grid on the right (each appears once)
+ * - Edges: bezier curves from each SIP to its connected media servers
+ *
+ * This supports many-to-many relationships where multiple SIPs can
+ * connect to the same media server.
  */
 export function useAutoLayout(topology: InfrastructureTopology): LayoutResult {
   return useMemo(() => {
@@ -106,76 +112,98 @@ export function useAutoLayout(topology: InfrastructureTopology): LayoutResult {
       return { nodes: [], edges: [] };
     }
 
-    // Separate SIP and Media servers
+    // =======================================================================
+    // STEP 1: Separate node types
+    // =======================================================================
     const sipServers = topology.nodes.filter(n => n.type === 'SIP');
     const mediaServers = topology.nodes.filter(n => n.type === 'MEDIA');
 
-    // Build a map of SIP -> connected media servers
-    const sipToMedia = new Map<string, InfrastructureNode[]>();
-    sipServers.forEach(sip => sipToMedia.set(sip.id, []));
-
-    topology.edges.forEach(edge => {
-      const mediaNode = mediaServers.find(m => m.id === edge.targetId);
-      if (mediaNode && sipToMedia.has(edge.sourceId)) {
-        sipToMedia.get(edge.sourceId)!.push(mediaNode);
-      }
-    });
-
     const nodes: Node<InfraNodeData>[] = [];
     const edges: Edge[] = [];
-    let currentY = 0;
 
-    // Layout each SIP server and its media servers
-    sipServers.forEach((sip) => {
-      const connectedMedia = sipToMedia.get(sip.id) || [];
-      const mediaCount = connectedMedia.length;
+    // =======================================================================
+    // STEP 2: Calculate media grid dimensions
+    // =======================================================================
+    const mediaCount = mediaServers.length;
+    const mediaCols = calculateGridColumns(mediaCount);
+    const mediaRows = Math.ceil(mediaCount / mediaCols);
+    const mediaGridHeight = mediaRows * (NODE_HEIGHT + V_GAP) - V_GAP;
+    const mediaGridWidth = mediaCols * (NODE_WIDTH + H_GAP) - H_GAP;
 
-      // Calculate grid dimensions based on server count
-      const cols = calculateGridColumns(mediaCount);
-      const rows = Math.ceil(mediaCount / cols);
-      const groupHeight = Math.max(1, rows) * (NODE_HEIGHT + V_GAP) - V_GAP;
+    // =======================================================================
+    // STEP 3: Calculate SIP column dimensions
+    // =======================================================================
+    const sipCount = sipServers.length;
+    const sipColumnHeight = sipCount * (NODE_HEIGHT + SIP_V_GAP) - SIP_V_GAP;
 
-      // Position SIP server (centered vertically relative to its media group)
-      const sipY = currentY + (groupHeight - NODE_HEIGHT) / 2;
+    // =======================================================================
+    // STEP 4: Position SIP servers (left column, centered to media grid)
+    // =======================================================================
+    // Center SIP column vertically relative to media grid
+    const sipStartY = Math.max(0, (mediaGridHeight - sipColumnHeight) / 2);
 
+    sipServers.forEach((sip, index) => {
       nodes.push({
         id: sip.id,
         type: 'sipServer',
-        position: { x: 0, y: sipY },
+        position: {
+          x: 0,
+          y: sipStartY + index * (NODE_HEIGHT + SIP_V_GAP),
+        },
         data: { ...sip } as InfraNodeData,
         width: NODE_WIDTH,
         height: NODE_HEIGHT,
       });
+    });
 
-      // Position media servers in adaptive grid
-      connectedMedia.forEach((media, index) => {
-        const row = Math.floor(index / cols);
-        const col = index % cols;
+    // =======================================================================
+    // STEP 5: Position media servers (right grid, independent of SIPs)
+    // =======================================================================
+    const mediaStartX = NODE_WIDTH + SIP_TO_MEDIA_GAP;
+    const mediaStartY = Math.max(0, (sipColumnHeight - mediaGridHeight) / 2);
 
-        nodes.push({
-          id: media.id,
-          type: 'mediaServer',
-          position: {
-            x: NODE_WIDTH + SIP_TO_MEDIA_GAP + col * (NODE_WIDTH + H_GAP),
-            y: currentY + row * (NODE_HEIGHT + V_GAP),
-          },
-          data: { ...media } as InfraNodeData,
-          width: NODE_WIDTH,
-          height: NODE_HEIGHT,
-        });
+    // Create a map for quick media server position lookup (for edges)
+    const mediaPositions = new Map<string, { x: number; y: number }>();
 
-        // Edge from SIP to each media server
-        // Bezier curves fan out naturally and route between nodes
-        edges.push({
-          id: `e-${sip.id}-${media.id}`,
-          source: sip.id,
-          target: media.id,
-          type: 'default',  // bezier curve
-          style: { strokeWidth: 1.5, opacity: 0.6 },
-        });
+    mediaServers.forEach((media, index) => {
+      const row = Math.floor(index / mediaCols);
+      const col = index % mediaCols;
+      const position = {
+        x: mediaStartX + col * (NODE_WIDTH + H_GAP),
+        y: mediaStartY + row * (NODE_HEIGHT + V_GAP),
+      };
+
+      mediaPositions.set(media.id, position);
+
+      nodes.push({
+        id: media.id,
+        type: 'mediaServer',
+        position,
+        data: { ...media } as InfraNodeData,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
       });
+    });
 
-      currentY += groupHeight + SIP_GROUP_GAP;
+    // =======================================================================
+    // STEP 6: Create edges from topology (supports shared media servers)
+    // =======================================================================
+    // Each edge in topology.edges creates a visual edge
+    // Multiple SIPs can have edges to the same media server
+    topology.edges.forEach((edge) => {
+      // Only create edge if both source (SIP) and target (media) exist
+      const sipExists = sipServers.some(s => s.id === edge.sourceId);
+      const mediaExists = mediaPositions.has(edge.targetId);
+
+      if (sipExists && mediaExists) {
+        edges.push({
+          id: edge.id,
+          source: edge.sourceId,
+          target: edge.targetId,
+          type: 'default',  // bezier curve
+          style: { strokeWidth: 1.5, opacity: 0.5 },
+        });
+      }
     });
 
     return { nodes, edges };

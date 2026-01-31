@@ -19,18 +19,33 @@ export interface SummaryCardProps {
   bgColor: string;
   /** Card width in pixels (default: 200) */
   width?: number;
+  /** Optional border color for the card */
+  borderColor?: string;
+  /** Optional background color for the entire card */
+  cardBgColor?: string;
 }
 
 /**
  * Summary card component for dashboard metrics.
  * Used across Agents, Calls, and Infrastructure pages.
  */
-export function SummaryCard({ title, value, icon, color, bgColor, width = 200 }: SummaryCardProps) {
+export function SummaryCard({ title, value, icon, color, bgColor, width = 200, borderColor, cardBgColor }: SummaryCardProps) {
   // Guard against problematic values
   const displayValue = value ?? '-';
 
   return (
-    <Card sx={{ width }}>
+    <Card
+      sx={{
+        width,
+        ...(borderColor && {
+          border: '2px solid',
+          borderColor,
+        }),
+        ...(cardBgColor && {
+          backgroundColor: cardBgColor,
+        }),
+      }}
+    >
       <CardContent>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Box sx={{ minWidth: 0, flex: 1 }}>

@@ -1,13 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import { Suspense } from 'react';
+import { Suspense, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 
-// Dynamic import to avoid SSR issues with dagre (CommonJS)
+// Dynamic import to avoid SSR issues with ReactFlow
 const InfrastructureFlow = dynamic(
   () => import('../../components/InfrastructureFlow/InfrastructureFlow').then(mod => mod.InfrastructureFlow),
   {
@@ -20,8 +20,19 @@ const InfrastructureFlow = dynamic(
   }
 );
 
-export default function InfrastructurePage() {
+export default function TopologyPage() {
   const { infrastructure, infrastructureSummary } = useWebSocketContext();
+
+  // Pinned node state for filtering the graph
+  const [pinnedNodeId, setPinnedNodeId] = useState<string | null>(null);
+
+  const handlePinNode = useCallback((nodeId: string) => {
+    setPinnedNodeId(nodeId);
+  }, []);
+
+  const handleClearPin = useCallback(() => {
+    setPinnedNodeId(null);
+  }, []);
 
   return (
     <Box
@@ -42,6 +53,9 @@ export default function InfrastructurePage() {
         <InfrastructureFlow
           topology={infrastructure}
           summary={infrastructureSummary}
+          pinnedNodeId={pinnedNodeId}
+          onPinNode={handlePinNode}
+          onClearPin={handleClearPin}
         />
       </Suspense>
     </Box>

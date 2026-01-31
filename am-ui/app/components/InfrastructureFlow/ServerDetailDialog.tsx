@@ -16,6 +16,8 @@ import DnsIcon from '@mui/icons-material/Dns';
 import VideocamIcon from '@mui/icons-material/Videocam';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import DeviceHubIcon from '@mui/icons-material/DeviceHub';
+import PushPinIcon from '@mui/icons-material/PushPin';
+import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { useThemeContext } from '../../context/ThemeContext';
 import { SERVER_TYPE_COLORS, SERVER_HEALTH_COLORS, getStatusColors } from '../../lib/statusColors';
 import type { InfrastructureNode, InfrastructureEdge } from '../../types';
@@ -25,6 +27,8 @@ interface ServerDetailDialogProps {
   server: InfrastructureNode | null;
   edges: InfrastructureEdge[];
   onClose: () => void;
+  onPin?: () => void;
+  isPinned?: boolean;
 }
 
 /**
@@ -51,14 +55,25 @@ function formatUptime(startTime: string): string {
   return parts.join(' ');
 }
 
-export function ServerDetailDialog({ open, server, edges, onClose }: ServerDetailDialogProps) {
+export function ServerDetailDialog({
+  open,
+  server,
+  edges,
+  onClose,
+  onPin,
+  isPinned = false,
+}: ServerDetailDialogProps) {
   const { mode } = useThemeContext();
   const isDarkMode = mode === 'dark';
   const [uptime, setUptime] = useState('');
 
-  // Count connected media servers for SIP servers
+  // Count connected servers based on type
   const connectedMediaCount = server?.type === 'SIP'
     ? edges.filter(e => e.sourceId === server.id).length
+    : 0;
+
+  const connectedSipCount = server?.type === 'MEDIA'
+    ? edges.filter(e => e.targetId === server.id).length
     : 0;
 
   // Update uptime every second when dialog is open
@@ -174,6 +189,21 @@ export function ServerDetailDialog({ open, server, edges, onClose }: ServerDetai
             </Box>
           )}
 
+          {/* Connected SIP Servers (Media only) */}
+          {server.type === 'MEDIA' && (
+            <Box>
+              <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                Connected SIP Servers
+              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <DeviceHubIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                <Typography variant="h4" sx={{ fontWeight: 500 }}>
+                  {connectedSipCount}
+                </Typography>
+              </Box>
+            </Box>
+          )}
+
           {/* Active Sessions */}
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
@@ -209,7 +239,19 @@ export function ServerDetailDialog({ open, server, edges, onClose }: ServerDetai
         </Box>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ justifyContent: 'space-between', px: 3 }}>
+        {onPin ? (
+          <Button
+            onClick={onPin}
+            startIcon={isPinned ? <PushPinIcon /> : <PushPinOutlinedIcon />}
+            color={isPinned ? 'primary' : 'inherit'}
+            disabled={isPinned}
+          >
+            {isPinned ? 'Pinned' : 'Pin to Filter'}
+          </Button>
+        ) : (
+          <Box />
+        )}
         <Button onClick={onClose}>Close</Button>
       </DialogActions>
     </Dialog>

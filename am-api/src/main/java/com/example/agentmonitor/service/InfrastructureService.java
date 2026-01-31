@@ -17,7 +17,10 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Service for infrastructure topology data.
- * Provides mock data for 4 SIP servers and 120 Media servers.
+ * Provides mock data for 4 SIP servers and 120 shared Media servers.
+ *
+ * Media servers can be connected to multiple SIP servers (many-to-many).
+ * This simulates a real-world topology where media resources are pooled.
  */
 @Service
 @Slf4j
@@ -96,8 +99,11 @@ public class InfrastructureService {
      */
     private ServerHealthStatus determineHealthStatus(int sessions, int maxSessions, String nodeId) {
         // Keep specific servers unhealthy for demo purposes
-        if ("media-7".equals(nodeId) || "media-45".equals(nodeId)) {
+        if ("media-7".equals(nodeId) || "media-45".equals(nodeId) || "media-89".equals(nodeId)) {
             return ServerHealthStatus.UNHEALTHY;
+        }
+        if ("media-12".equals(nodeId) || "media-67".equals(nodeId) || "media-103".equals(nodeId)) {
+            return ServerHealthStatus.DEGRADED;
         }
 
         double utilization = (double) sessions / maxSessions;
@@ -109,20 +115,32 @@ public class InfrastructureService {
     }
 
     /**
-     * Generate initial topology with 4 SIP servers and 120 Media servers.
-     * Each SIP server connects to 30 Media servers.
+     * Generate initial topology with 4 SIP servers and 120 shared Media servers.
+     *
+     * Topology structure:
+     * - 4 SIP servers (one per datacenter)
+     * - 120 Media servers total (shared pool)
+     * - Each SIP connects to ~40-60 media servers
+     * - Many media servers are shared across multiple SIPs
+     *
+     * Sharing pattern:
+     * - Media 1-20: Core pool shared by ALL 4 SIPs
+     * - Media 21-50: Shared by SIP 1 & 2 (DC1-DC2 region)
+     * - Media 51-80: Shared by SIP 3 & 4 (DC3-DC4 region)
+     * - Media 81-100: Shared by SIP 1 & 3 (odd SIPs)
+     * - Media 101-120: Shared by SIP 2 & 4 (even SIPs)
      */
     private InfrastructureTopology generateTopology() {
         List<InfrastructureNode> nodes = new ArrayList<>();
         List<InfrastructureEdge> edges = new ArrayList<>();
 
         Instant now = Instant.now();
-        int sipCount = 4;
-        int mediaPerSip = 30;
         String[] datacenters = {"dc1", "dc2", "dc3", "dc4"};
 
-        // Generate SIP servers
-        for (int i = 1; i <= sipCount; i++) {
+        // =====================================================================
+        // Generate 4 SIP servers
+        // =====================================================================
+        for (int i = 1; i <= 4; i++) {
             String dc = datacenters[i - 1];
             nodes.add(InfrastructureNode.builder()
                     .id("sip-" + i)
@@ -136,51 +154,89 @@ public class InfrastructureService {
                     .build());
         }
 
-        // Generate Media servers (30 per SIP server)
-        int mediaIndex = 1;
-        for (int sipIdx = 1; sipIdx <= sipCount; sipIdx++) {
-            String dc = datacenters[sipIdx - 1];
-            String sipId = "sip-" + sipIdx;
+        // =====================================================================
+        // Generate 120 Media servers (shared pool)
+        // =====================================================================
+        for (int i = 1; i <= 120; i++) {
+            String dc = datacenters[(i - 1) % 4];
+            int sessions = random.nextInt(80);
 
-            for (int m = 0; m < mediaPerSip; m++) {
-                String mediaId = "media-" + mediaIndex;
-                int sessions = random.nextInt(80);
-
-                // A few servers are degraded or unhealthy for demo
-                ServerHealthStatus health = ServerHealthStatus.HEALTHY;
-                if (mediaIndex == 7 || mediaIndex == 45) {
-                    health = ServerHealthStatus.UNHEALTHY;
-                    sessions = 0;
-                } else if (sessions > 70) {
-                    health = ServerHealthStatus.DEGRADED;
-                }
-
-                nodes.add(InfrastructureNode.builder()
-                        .id(mediaId)
-                        .type(InfraServerType.MEDIA)
-                        .hostname(String.format("media-%03d.%s.example.com", mediaIndex, dc))
-                        .ipAddress(String.format("10.%d.2.%d", sipIdx, 10 + (m % 240)))
-                        .startTime(now.minus(10 + random.nextInt(20), ChronoUnit.DAYS).minus(random.nextInt(24), ChronoUnit.HOURS))
-                        .activeSessions(sessions)
-                        .maxSessions(100)
-                        .healthStatus(health)
-                        .build());
-
-                // Create edge from SIP to Media
-                edges.add(InfrastructureEdge.builder()
-                        .id(String.format("e-%s-%s", sipId, mediaId))
-                        .sourceId(sipId)
-                        .targetId(mediaId)
-                        .build());
-
-                mediaIndex++;
+            ServerHealthStatus health = ServerHealthStatus.HEALTHY;
+            // A few servers unhealthy or degraded for demo
+            if (i == 7 || i == 45 || i == 89) {
+                health = ServerHealthStatus.UNHEALTHY;
+                sessions = 0;
+            } else if (i == 12 || i == 67 || i == 103) {
+                health = ServerHealthStatus.DEGRADED;
+                sessions = 85;
+            } else if (sessions > 70) {
+                health = ServerHealthStatus.DEGRADED;
             }
+
+            nodes.add(InfrastructureNode.builder()
+                    .id("media-" + i)
+                    .type(InfraServerType.MEDIA)
+                    .hostname(String.format("media-%03d.%s.example.com", i, dc))
+                    .ipAddress(String.format("10.0.%d.%d", 2 + (i / 250), 10 + (i % 240)))
+                    .startTime(now.minus(10 + random.nextInt(20), ChronoUnit.DAYS).minus(random.nextInt(24), ChronoUnit.HOURS))
+                    .activeSessions(sessions)
+                    .maxSessions(100)
+                    .healthStatus(health)
+                    .build());
+        }
+
+        // =====================================================================
+        // Create edges (many-to-many SIP ↔ Media relationships)
+        // =====================================================================
+
+        // Core pool: Media 1-20 shared by ALL 4 SIPs
+        for (int sipIdx = 1; sipIdx <= 4; sipIdx++) {
+            for (int mediaIdx = 1; mediaIdx <= 20; mediaIdx++) {
+                edges.add(createEdge(sipIdx, mediaIdx));
+            }
+        }
+
+        // DC1-DC2 region: Media 21-50 shared by SIP 1 & 2
+        for (int sipIdx = 1; sipIdx <= 2; sipIdx++) {
+            for (int mediaIdx = 21; mediaIdx <= 50; mediaIdx++) {
+                edges.add(createEdge(sipIdx, mediaIdx));
+            }
+        }
+
+        // DC3-DC4 region: Media 51-80 shared by SIP 3 & 4
+        for (int sipIdx = 3; sipIdx <= 4; sipIdx++) {
+            for (int mediaIdx = 51; mediaIdx <= 80; mediaIdx++) {
+                edges.add(createEdge(sipIdx, mediaIdx));
+            }
+        }
+
+        // Odd SIPs pool: Media 81-100 shared by SIP 1 & 3
+        for (int mediaIdx = 81; mediaIdx <= 100; mediaIdx++) {
+            edges.add(createEdge(1, mediaIdx));
+            edges.add(createEdge(3, mediaIdx));
+        }
+
+        // Even SIPs pool: Media 101-120 shared by SIP 2 & 4
+        for (int mediaIdx = 101; mediaIdx <= 120; mediaIdx++) {
+            edges.add(createEdge(2, mediaIdx));
+            edges.add(createEdge(4, mediaIdx));
         }
 
         return InfrastructureTopology.builder()
                 .nodes(nodes)
                 .edges(edges)
                 .lastUpdated(Instant.now())
+                .build();
+    }
+
+    /**
+     * Helper to create an edge between a SIP and Media server.
+     */
+    private InfrastructureEdge createEdge(int sipIdx, int mediaIdx) {
+        return InfrastructureEdge.builder()
+                .id(String.format("e-sip-%d-media-%d", sipIdx, mediaIdx))
+                .sourceId("sip-" + sipIdx)
+                .targetId("media-" + mediaIdx)
                 .build();
     }
 }
