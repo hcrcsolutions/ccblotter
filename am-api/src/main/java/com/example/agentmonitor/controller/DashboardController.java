@@ -5,6 +5,7 @@ import com.example.agentmonitor.model.*;
 import com.example.agentmonitor.service.AgentService;
 import com.example.agentmonitor.service.CallService;
 import com.example.agentmonitor.service.DataGeneratorService;
+import com.example.agentmonitor.service.InfrastructureService;
 import com.example.agentmonitor.service.QueueService;
 import com.example.agentmonitor.service.RedisHealthService;
 import com.example.agentmonitor.service.SimulationService;
@@ -33,6 +34,7 @@ public class DashboardController {
     private final RedisHealthService healthService;
     private final DataGeneratorService dataGeneratorService;
     private final SimulationService simulationService;
+    private final InfrastructureService infrastructureService;
 
     /**
      * Get system health status.
@@ -102,6 +104,15 @@ public class DashboardController {
             log.error("Redis unavailable when fetching queue", e);
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();
         }
+    }
+
+    /**
+     * Get infrastructure topology.
+     */
+    @GetMapping("/infrastructure")
+    public ResponseEntity<InfrastructureTopology> getInfrastructure() {
+        InfrastructureTopology topology = infrastructureService.getTopology();
+        return ResponseEntity.ok(topology);
     }
 
     // ============= Test/Demo endpoints =============

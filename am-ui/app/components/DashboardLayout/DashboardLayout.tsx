@@ -20,6 +20,7 @@ import Brightness7Icon from '@mui/icons-material/Brightness7';
 import PhoneIcon from '@mui/icons-material/Phone';
 import GroupIcon from '@mui/icons-material/Group';
 import PhoneInTalkIcon from '@mui/icons-material/PhoneInTalk';
+import HubIcon from '@mui/icons-material/Hub';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useThemeContext } from '../../context/ThemeContext';
 
@@ -35,12 +36,14 @@ interface NavItem {
 const NAVIGATION: NavItem[] = [
   { segment: 'agents', title: 'Agents', icon: <GroupIcon sx={{ fontSize: 24 }} /> },
   { segment: 'calls', title: 'Calls', icon: <PhoneInTalkIcon sx={{ fontSize: 24 }} /> },
+  { segment: 'topology', title: 'Topology', icon: <HubIcon sx={{ fontSize: 24 }} /> },
   { segment: 'settings', title: 'Settings', icon: <SettingsIcon sx={{ fontSize: 24 }} /> },
 ];
 
 const PAGE_TITLES: Record<string, string> = {
   '/agents': 'Agents',
   '/calls': 'Calls',
+  '/topology': 'Topology',
   '/settings': 'Settings',
 };
 
@@ -93,7 +96,7 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
           const isActive = pathname === href;
 
           return (
-            <ListItem key={item.segment} disablePadding>
+            <ListItem key={item.segment} disablePadding sx={{ mb: 0.5 }}>
               <ListItemButton
                 component={Link}
                 href={href}
@@ -140,6 +143,10 @@ export function DashboardLayout({ children, toolbarActions }: DashboardLayoutPro
                     fontSize: drawerOpen ? undefined : '0.65rem',
                     m: 0,
                     lineHeight: 1,
+                    maxWidth: drawerOpen ? undefined : 56,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
                   }}
                 >
                   {item.title}

@@ -12,10 +12,18 @@ import type {
   QueueStats,
   AgentSummary,
   SystemStatus,
+  InfraServerType,
+  ServerHealthStatus,
+  InfrastructureNode,
+  InfrastructureEdge,
+  InfrastructureTopology,
+  InfrastructureSummary,
 } from '../types';
 
 const VALID_AGENT_STATES: AgentState[] = ['ONLINE', 'ON_CALL', 'AWAY', 'UNAVAILABLE'];
 const VALID_CALL_STATES: CallState[] = ['TALKING', 'ON_HOLD'];
+const VALID_INFRA_SERVER_TYPES: InfraServerType[] = ['SIP', 'MEDIA'];
+const VALID_HEALTH_STATUSES: ServerHealthStatus[] = ['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'UNKNOWN'];
 
 function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -135,6 +143,67 @@ export function isValidQueueMessage(value: unknown): value is { calls: QueuedCal
   return (
     (Array.isArray(calls) && calls.every(isValidQueuedCall)) &&
     isValidQueueStats(stats)
+  );
+}
+
+export function isValidInfraServerType(value: unknown): value is InfraServerType {
+  return isString(value) && VALID_INFRA_SERVER_TYPES.includes(value as InfraServerType);
+}
+
+export function isValidServerHealthStatus(value: unknown): value is ServerHealthStatus {
+  return isString(value) && VALID_HEALTH_STATUSES.includes(value as ServerHealthStatus);
+}
+
+export function isValidInfrastructureNode(value: unknown): value is InfrastructureNode {
+  if (!isObject(value)) return false;
+  const position = value.position;
+  const hasValidPosition = position === undefined || (
+    isObject(position) &&
+    isNumber(position.x) &&
+    isNumber(position.y)
+  );
+  return (
+    isString(value.id) &&
+    isValidInfraServerType(value.type) &&
+    isString(value.hostname) &&
+    isString(value.ipAddress) &&
+    isString(value.startTime) &&
+    isNumber(value.activeSessions) &&
+    isNumber(value.maxSessions) &&
+    isValidServerHealthStatus(value.healthStatus) &&
+    hasValidPosition
+  );
+}
+
+export function isValidInfrastructureEdge(value: unknown): value is InfrastructureEdge {
+  if (!isObject(value)) return false;
+  return (
+    isString(value.id) &&
+    isString(value.sourceId) &&
+    isString(value.targetId)
+  );
+}
+
+export function isValidInfrastructureTopology(value: unknown): value is InfrastructureTopology {
+  if (!isObject(value)) return false;
+  return (
+    Array.isArray(value.nodes) &&
+    value.nodes.every(isValidInfrastructureNode) &&
+    Array.isArray(value.edges) &&
+    value.edges.every(isValidInfrastructureEdge) &&
+    isString(value.lastUpdated)
+  );
+}
+
+export function isValidInfrastructureSummary(value: unknown): value is InfrastructureSummary {
+  if (!isObject(value)) return false;
+  return (
+    isNumber(value.sipServerCount) &&
+    isNumber(value.mediaServerCount) &&
+    isNumber(value.totalActiveSessions) &&
+    isNumber(value.healthyCount) &&
+    isNumber(value.degradedCount) &&
+    isNumber(value.unhealthyCount)
   );
 }
 

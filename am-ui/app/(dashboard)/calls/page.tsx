@@ -2,8 +2,6 @@
 
 import * as React from 'react';
 import Box from '@mui/material/Box';
-import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { AgGridReact } from 'ag-grid-react';
@@ -16,52 +14,11 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import WarningIcon from '@mui/icons-material/Warning';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
+import { SummaryCard } from '../../components/SummaryCard/SummaryCard';
 import type { Call, CallState } from '../../types';
 import '../../lib/agGridSetup';
 import { CALL_STATE_COLORS, PRIORITY_COLORS } from '../../lib/statusColors';
 import { formatDuration, calculateDuration } from '../../lib/formatters';
-
-// Summary card component
-interface SummaryCardProps {
-  title: string;
-  value: string | number;
-  icon: React.ReactNode;
-  color: string;
-  bgColor: string;
-}
-
-function SummaryCard({ title, value, icon, color, bgColor }: SummaryCardProps) {
-  return (
-    <Card sx={{ width: 200 }}>
-      <CardContent>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-              {title}
-            </Typography>
-            <Typography variant="h3" component="div" sx={{ fontWeight: 600, color }}>
-              {value}
-            </Typography>
-          </Box>
-          <Box
-            sx={{
-              width: 56,
-              height: 56,
-              borderRadius: 2,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              backgroundColor: bgColor,
-              color,
-            }}
-          >
-            {icon}
-          </Box>
-        </Box>
-      </CardContent>
-    </Card>
-  );
-}
 
 // Call state cell renderer
 function CallStateCellRenderer(params: ICellRendererParams) {
@@ -318,6 +275,7 @@ export default function CallsPage() {
               icon={<QueueIcon sx={{ fontSize: 32 }} />}
               color="hsl(210, 98%, 42%)"
               bgColor="hsl(210, 100%, 95%)"
+              width={250}
             />
             <SummaryCard
               title="Active Calls"
@@ -325,6 +283,7 @@ export default function CallsPage() {
               icon={<PhoneInTalkIcon sx={{ fontSize: 32 }} />}
               color="hsl(120, 59%, 30%)"
               bgColor="hsl(120, 80%, 95%)"
+              width={250}
             />
             <SummaryCard
               title="Avg Wait"
@@ -332,6 +291,7 @@ export default function CallsPage() {
               icon={<AccessTimeIcon sx={{ fontSize: 32 }} />}
               color="hsl(45, 90%, 40%)"
               bgColor="hsl(45, 100%, 95%)"
+              width={250}
             />
             <SummaryCard
               title="Longest Wait"
@@ -339,6 +299,7 @@ export default function CallsPage() {
               icon={<WarningIcon sx={{ fontSize: 32 }} />}
               color={queueStats.longestWaitSeconds > 120 ? 'hsl(0, 90%, 40%)' : 'hsl(220, 20%, 40%)'}
               bgColor={queueStats.longestWaitSeconds > 120 ? 'hsl(0, 100%, 95%)' : 'hsl(220, 20%, 95%)'}
+              width={250}
             />
           </Box>
 

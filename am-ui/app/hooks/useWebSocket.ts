@@ -12,6 +12,8 @@ import type {
   SystemStatus,
   ConnectionState,
   DashboardState,
+  InfrastructureTopology,
+  InfrastructureSummary,
 } from '../types';
 import {
   isValidAgentArray,
@@ -19,6 +21,7 @@ import {
   isValidAgentSummary,
   isValidSystemStatus,
   isValidQueueMessage,
+  isValidInfrastructureTopology,
   safeParseJson,
 } from '../lib/typeValidation';
 import { isServer, getLocalStorageItem, removeLocalStorageItem } from '../lib/ssr';
@@ -85,6 +88,36 @@ const initialQueueStats: QueueStats = {
   longestWaitSeconds: 0,
 };
 
+const initialInfrastructure: InfrastructureTopology = {
+  nodes: [],
+  edges: [],
+  lastUpdated: new Date().toISOString(),
+};
+
+const initialInfrastructureSummary: InfrastructureSummary = {
+  sipServerCount: 0,
+  mediaServerCount: 0,
+  totalActiveSessions: 0,
+  healthyCount: 0,
+  degradedCount: 0,
+  unhealthyCount: 0,
+};
+
+/**
+ * Calculate infrastructure summary from topology.
+ */
+function calculateInfrastructureSummary(topology: InfrastructureTopology): InfrastructureSummary {
+  const nodes = topology.nodes;
+  return {
+    sipServerCount: nodes.filter(n => n.type === 'SIP').length,
+    mediaServerCount: nodes.filter(n => n.type === 'MEDIA').length,
+    totalActiveSessions: nodes.reduce((sum, n) => sum + n.activeSessions, 0),
+    healthyCount: nodes.filter(n => n.healthStatus === 'HEALTHY').length,
+    degradedCount: nodes.filter(n => n.healthStatus === 'DEGRADED').length,
+    unhealthyCount: nodes.filter(n => n.healthStatus === 'UNHEALTHY').length,
+  };
+}
+
 /**
  * WebSocket hook for real-time dashboard updates.
  *
@@ -102,6 +135,8 @@ export function useWebSocket(): DashboardState {
   const [summary, setSummary] = useState<AgentSummary>(initialSummary);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(initialSystemStatus);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
+  const [infrastructure, setInfrastructure] = useState<InfrastructureTopology>(initialInfrastructure);
+  const [infrastructureSummary, setInfrastructureSummary] = useState<InfrastructureSummary>(initialInfrastructureSummary);
 
   const clientRef = useRef<Client | null>(null);
   const subscriptionsRef = useRef<StompSubscription[]>([]);
@@ -124,9 +159,10 @@ export function useWebSocket(): DashboardState {
       fetch(`${apiUrl}/queue`),
       fetch(`${apiUrl}/agents/summary`),
       fetch(`${apiUrl}/health`),
+      fetch(`${apiUrl}/infrastructure`),
     ]);
 
-    const [agentsResult, callsResult, queueResult, summaryResult, healthResult] = results;
+    const [agentsResult, callsResult, queueResult, summaryResult, healthResult, infrastructureResult] = results;
 
     // Process agents
     if (agentsResult.status === 'fulfilled' && agentsResult.value.ok) {
@@ -200,6 +236,22 @@ export function useWebSocket(): DashboardState {
       }
     } else if (healthResult.status === 'rejected') {
       console.error('Failed to fetch health:', healthResult.reason);
+    }
+
+    // Process infrastructure
+    if (infrastructureResult.status === 'fulfilled' && infrastructureResult.value.ok) {
+      try {
+        const infraData = await infrastructureResult.value.json();
+        if (isMountedRef.current && isValidInfrastructureTopology(infraData)) {
+          setInfrastructure(infraData);
+          setInfrastructureSummary(calculateInfrastructureSummary(infraData));
+          console.log(`Loaded ${infraData.nodes.length} infrastructure nodes`);
+        }
+      } catch (e) {
+        console.error('Failed to parse infrastructure response:', e);
+      }
+    } else if (infrastructureResult.status === 'rejected') {
+      console.error('Failed to fetch infrastructure:', infrastructureResult.reason);
     }
   }, []);
 
@@ -298,6 +350,16 @@ export function useWebSocket(): DashboardState {
           });
         });
         subscriptionsRef.current.push(queueSub);
+
+        const infrastructureSub = client.subscribe('/topic/infrastructure', (message: IMessage) => {
+          if (!isMountedRef.current) return;
+          const data = safeParseJson(message.body, isValidInfrastructureTopology);
+          handleParseResult(data, 'infrastructure', (infraData) => {
+            setInfrastructure(infraData);
+            setInfrastructureSummary(calculateInfrastructureSummary(infraData));
+          });
+        });
+        subscriptionsRef.current.push(infrastructureSub);
 
         // Fetch initial data after subscriptions are set up
         fetchInitialData();
@@ -398,6 +460,8 @@ export function useWebSocket(): DashboardState {
     summary,
     systemStatus,
     connectionState,
+    infrastructure,
+    infrastructureSummary,
     reconnect,
   };
 }

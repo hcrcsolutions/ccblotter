@@ -27,6 +27,19 @@ const initialState: DashboardState = {
     errorMessage: null,
   },
   connectionState: 'connecting',
+  infrastructure: {
+    nodes: [],
+    edges: [],
+    lastUpdated: new Date().toISOString(),
+  },
+  infrastructureSummary: {
+    sipServerCount: 0,
+    mediaServerCount: 0,
+    totalActiveSessions: 0,
+    healthyCount: 0,
+    degradedCount: 0,
+    unhealthyCount: 0,
+  },
   reconnect: () => {},
 };
 

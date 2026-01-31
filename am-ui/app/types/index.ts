@@ -83,6 +83,61 @@ export interface SystemStatus {
 export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'error';
 
 /**
+ * Infrastructure server types.
+ */
+export type InfraServerType = 'SIP' | 'MEDIA';
+
+/**
+ * Server health status.
+ */
+export type ServerHealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'UNKNOWN';
+
+/**
+ * Represents an infrastructure server node.
+ */
+export interface InfrastructureNode {
+  id: string;
+  type: InfraServerType;
+  hostname: string;
+  ipAddress: string;
+  startTime: string; // ISO timestamp
+  activeSessions: number;
+  maxSessions: number;
+  healthStatus: ServerHealthStatus;
+  position?: { x: number; y: number }; // Optional saved position
+}
+
+/**
+ * Represents a connection between infrastructure nodes.
+ */
+export interface InfrastructureEdge {
+  id: string;
+  sourceId: string;
+  targetId: string;
+}
+
+/**
+ * Complete infrastructure topology.
+ */
+export interface InfrastructureTopology {
+  nodes: InfrastructureNode[];
+  edges: InfrastructureEdge[];
+  lastUpdated: string; // ISO timestamp
+}
+
+/**
+ * Summary of infrastructure status.
+ */
+export interface InfrastructureSummary {
+  sipServerCount: number;
+  mediaServerCount: number;
+  totalActiveSessions: number;
+  healthyCount: number;
+  degradedCount: number;
+  unhealthyCount: number;
+}
+
+/**
  * Complete dashboard state from WebSocket.
  */
 export interface DashboardState {
@@ -93,5 +148,7 @@ export interface DashboardState {
   summary: AgentSummary;
   systemStatus: SystemStatus;
   connectionState: ConnectionState;
+  infrastructure: InfrastructureTopology;
+  infrastructureSummary: InfrastructureSummary;
   reconnect: () => void;
 }
