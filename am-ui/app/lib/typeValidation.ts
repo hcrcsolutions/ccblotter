@@ -22,7 +22,7 @@ import type {
 
 const VALID_AGENT_STATES: AgentState[] = ['ONLINE', 'ON_CALL', 'AWAY', 'UNAVAILABLE'];
 const VALID_CALL_STATES: CallState[] = ['TALKING', 'ON_HOLD'];
-const VALID_INFRA_SERVER_TYPES: InfraServerType[] = ['SIP', 'MEDIA'];
+const VALID_INFRA_SERVER_TYPES: InfraServerType[] = ['TRUNK', 'SBC', 'SIP', 'MEDIA'];
 const VALID_HEALTH_STATUSES: ServerHealthStatus[] = ['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'UNKNOWN'];
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -162,6 +162,8 @@ export function isValidInfrastructureNode(value: unknown): value is Infrastructu
     isNumber(position.x) &&
     isNumber(position.y)
   );
+  // Check core required fields - new fields like datacenter, metrics, etc. are optional in validation
+  // to allow backward compatibility, but they will be present in the actual data
   return (
     isString(value.id) &&
     isValidInfraServerType(value.type) &&

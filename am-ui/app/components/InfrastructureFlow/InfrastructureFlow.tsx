@@ -1,35 +1,71 @@
 'use client';
 
-import * as React from 'react';
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import {
   ReactFlow,
   Controls,
   MiniMap,
   Background,
   BackgroundVariant,
-  Panel,
   type NodeMouseHandler,
   type NodeTypes,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
+import ToggleButton from '@mui/material/ToggleButton';
+import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { useThemeContext } from '../../context/ThemeContext';
+import { SERVER_HEALTH_COLORS, SERVER_TYPE_COLORS, getStatusColors } from '../../lib/statusColors';
+import { TrunkNode } from './TrunkNode';
+import { SbcNode } from './SbcNode';
 import { SipServerNode } from './SipServerNode';
 import { MediaServerNode } from './MediaServerNode';
+import { DatacenterHeader } from './DatacenterHeader';
 import { ServerDetailDialog } from './ServerDetailDialog';
 import { InfrastructureSummaryCards } from './InfrastructureSummaryCards';
 import { TopologyFilter } from './TopologyFilter';
+import { MetricsPanel } from './MetricsPanel';
 import { useAutoLayout } from './useAutoLayout';
-import type { InfrastructureTopology, InfrastructureSummary, InfrastructureNode } from '../../types';
+import type { InfrastructureTopology, InfrastructureSummary, InfrastructureNode, InfraServerType } from '../../types';
+
+// =============================================================================
+// TYPE GUARD
+// =============================================================================
+
+const VALID_SERVER_TYPES: InfraServerType[] = ['TRUNK', 'SBC', 'SIP', 'MEDIA'];
+
+/**
+ * Type guard to validate that an unknown object is an InfrastructureNode.
+ */
+function isInfrastructureNode(data: unknown): data is InfrastructureNode {
+  if (!data || typeof data !== 'object') return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.id === 'string' &&
+    typeof obj.type === 'string' &&
+    VALID_SERVER_TYPES.includes(obj.type as InfraServerType) &&
+    typeof obj.hostname === 'string' &&
+    typeof obj.ipAddress === 'string' &&
+    typeof obj.activeSessions === 'number' &&
+    typeof obj.maxSessions === 'number' &&
+    typeof obj.healthStatus === 'string'
+  );
+}
 
 // =============================================================================
 // TOPOLOGY FILTERING
 // =============================================================================
 // When a node is pinned, we filter the topology to show only relevant nodes:
-// - Pin a SIP server → show that SIP + all its connected media servers
-// - Pin a Media server → show that media + all SIPs connected to it
+// - Pin a Trunk → show that trunk + connected SBCs
+// - Pin an SBC → show that SBC + connected trunks + connected SIPs
+// - Pin a SIP → show that SIP + connected SBCs + connected media servers
+// - Pin a Media → show that media + connected SIPs
 // =============================================================================
 
 function filterTopologyByPinnedNode(
@@ -48,20 +84,40 @@ function filterTopologyByPinnedNode(
   // Find all connected node IDs based on edges
   const connectedNodeIds = new Set<string>([pinnedNodeId]);
 
-  if (pinnedNode.type === 'SIP') {
-    // SIP pinned: find all media servers connected to this SIP
-    topology.edges.forEach(edge => {
-      if (edge.sourceId === pinnedNodeId) {
-        connectedNodeIds.add(edge.targetId);
-      }
-    });
-  } else {
-    // Media pinned: find all SIP servers connected to this media
-    topology.edges.forEach(edge => {
-      if (edge.targetId === pinnedNodeId) {
-        connectedNodeIds.add(edge.sourceId);
-      }
-    });
+  // For each node type, determine connected nodes
+  switch (pinnedNode.type) {
+    case 'TRUNK':
+      // Trunk pinned: find connected SBCs (trunk is source)
+      topology.edges.forEach(edge => {
+        if (edge.sourceId === pinnedNodeId) {
+          connectedNodeIds.add(edge.targetId);
+        }
+      });
+      break;
+
+    case 'SBC':
+    case 'SIP':
+      // SBC/SIP pinned: find all connected nodes (bidirectional)
+      // SBC connects to trunks (upstream) and SIPs (downstream)
+      // SIP connects to SBCs (upstream) and media servers (downstream)
+      topology.edges.forEach(edge => {
+        if (edge.targetId === pinnedNodeId) {
+          connectedNodeIds.add(edge.sourceId);
+        }
+        if (edge.sourceId === pinnedNodeId) {
+          connectedNodeIds.add(edge.targetId);
+        }
+      });
+      break;
+
+    case 'MEDIA':
+      // Media pinned: find connected SIPs (media is target)
+      topology.edges.forEach(edge => {
+        if (edge.targetId === pinnedNodeId) {
+          connectedNodeIds.add(edge.sourceId);
+        }
+      });
+      break;
   }
 
   // Filter nodes and edges
@@ -77,10 +133,13 @@ function filterTopologyByPinnedNode(
   };
 }
 
-const nodeTypes: NodeTypes = {
+const nodeTypes = {
+  trunkServer: TrunkNode,
+  sbcServer: SbcNode,
   sipServer: SipServerNode,
   mediaServer: MediaServerNode,
-};
+  dcHeader: DatacenterHeader,
+} as const satisfies NodeTypes;
 
 interface InfrastructureFlowProps {
   topology: InfrastructureTopology;
@@ -90,7 +149,7 @@ interface InfrastructureFlowProps {
   onClearPin?: () => void;
 }
 
-export function InfrastructureFlow({
+export const InfrastructureFlow = memo(function InfrastructureFlow({
   topology,
   summary,
   pinnedNodeId = null,
@@ -100,20 +159,36 @@ export function InfrastructureFlow({
   const { mode } = useThemeContext();
   const isDarkMode = mode === 'dark';
 
+  // State
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [metricsPanelOpen, setMetricsPanelOpen] = useState(false);
+  const [groupByDatacenter, setGroupByDatacenter] = useState(true);
+
+  // Derive selected node from current topology to avoid stale data
+  const selectedNode = useMemo(() => {
+    if (!selectedNodeId) return null;
+    return topology.nodes.find(n => n.id === selectedNodeId) ?? null;
+  }, [selectedNodeId, topology.nodes]);
+
   // Filter topology based on pinned node
   const filteredTopology = useMemo(
     () => filterTopologyByPinnedNode(topology, pinnedNodeId),
     [topology, pinnedNodeId]
   );
 
-  const { nodes, edges } = useAutoLayout(filteredTopology);
-
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<InfrastructureNode | null>(null);
+  const { nodes, edges } = useAutoLayout(filteredTopology, { groupByDatacenter });
 
   const handleNodeClick: NodeMouseHandler = useCallback((_event, node) => {
-    setSelectedNode(node.data as unknown as InfrastructureNode);
-    setDialogOpen(true);
+    // Ignore clicks on DC header nodes
+    if (node.type === 'dcHeader') {
+      return;
+    }
+    // Validate node data conforms to InfrastructureNode before using
+    if (isInfrastructureNode(node.data)) {
+      setSelectedNodeId(node.data.id);
+      setDialogOpen(true);
+    }
   }, []);
 
   const handleDialogClose = useCallback(() => {
@@ -126,6 +201,70 @@ export function InfrastructureFlow({
       setDialogOpen(false);
     }
   }, [selectedNode, onPinNode]);
+
+  const handleMetricsPanelClose = useCallback(() => {
+    setMetricsPanelOpen(false);
+  }, []);
+
+  const handleLayoutToggle = useCallback((_e: React.MouseEvent<HTMLElement>, value: string | null) => {
+    if (value !== null) {
+      setGroupByDatacenter(value === 'grouped');
+    }
+  }, []);
+
+  const handleMetricsPanelOpen = useCallback(() => {
+    setMetricsPanelOpen(true);
+  }, []);
+
+  // Pre-compute MiniMap colors to avoid creating new objects on every node
+  const miniMapColors = useMemo(() => ({
+    healthy: getStatusColors(SERVER_HEALTH_COLORS.HEALTHY, isDarkMode).text,
+    degraded: getStatusColors(SERVER_HEALTH_COLORS.DEGRADED, isDarkMode).text,
+    unhealthy: getStatusColors(SERVER_HEALTH_COLORS.UNHEALTHY, isDarkMode).text,
+    trunk: getStatusColors(SERVER_TYPE_COLORS.TRUNK, isDarkMode).text,
+    sbc: getStatusColors(SERVER_TYPE_COLORS.SBC, isDarkMode).text,
+    sip: getStatusColors(SERVER_TYPE_COLORS.SIP, isDarkMode).text,
+    media: getStatusColors(SERVER_TYPE_COLORS.MEDIA, isDarkMode).text,
+  }), [isDarkMode]);
+
+  // Memoized node color function for MiniMap
+  const getNodeColor = useCallback((node: { type?: string; data: unknown }) => {
+    // DC header nodes are not shown in minimap
+    if (node.type === 'dcHeader') {
+      return 'transparent';
+    }
+
+    // Safely extract properties with type narrowing
+    const data = node.data;
+    if (!data || typeof data !== 'object') {
+      return miniMapColors.healthy;
+    }
+
+    const healthStatus = 'healthStatus' in data ? data.healthStatus : undefined;
+    const nodeType = 'type' in data ? data.type : undefined;
+
+    // Color by health first (unhealthy/degraded override type color)
+    if (healthStatus === 'UNHEALTHY') {
+      return miniMapColors.unhealthy;
+    }
+    if (healthStatus === 'DEGRADED') {
+      return miniMapColors.degraded;
+    }
+
+    // Color by type for healthy nodes
+    switch (nodeType) {
+      case 'TRUNK':
+        return miniMapColors.trunk;
+      case 'SBC':
+        return miniMapColors.sbc;
+      case 'SIP':
+        return miniMapColors.sip;
+      case 'MEDIA':
+        return miniMapColors.media;
+      default:
+        return miniMapColors.healthy;
+    }
+  }, [miniMapColors]);
 
   if (nodes.length === 0) {
     return (
@@ -150,15 +289,64 @@ export function InfrastructureFlow({
 
   return (
     <>
-      <InfrastructureSummaryCards summary={summary} />
-      <Box sx={{ flex: 1, mt: 3, position: 'relative', minHeight: 0 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+        <Box sx={{ flex: 1 }}>
+          <InfrastructureSummaryCards summary={summary} />
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {/* Layout Toggle */}
+          <ToggleButtonGroup
+            value={groupByDatacenter ? 'grouped' : 'flat'}
+            exclusive
+            onChange={handleLayoutToggle}
+            size="small"
+            sx={{
+              bgcolor: isDarkMode ? 'hsl(220, 20%, 20%)' : 'hsl(220, 20%, 95%)',
+              '& .MuiToggleButton-root': {
+                border: 'none',
+                px: 1.5,
+                '&.Mui-selected': {
+                  bgcolor: isDarkMode ? 'hsl(220, 20%, 30%)' : 'hsl(220, 20%, 85%)',
+                },
+              },
+            }}
+          >
+            <ToggleButton value="grouped">
+              <Tooltip title="Group by Datacenter">
+                <AccountTreeIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+            <ToggleButton value="flat">
+              <Tooltip title="Flat View">
+                <ViewModuleIcon fontSize="small" />
+              </Tooltip>
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          {/* Metrics Panel Button */}
+          <Tooltip title="System Metrics">
+            <IconButton
+              onClick={handleMetricsPanelOpen}
+              sx={{
+                bgcolor: isDarkMode ? 'hsl(220, 20%, 20%)' : 'hsl(220, 20%, 95%)',
+                '&:hover': {
+                  bgcolor: isDarkMode ? 'hsl(220, 20%, 25%)' : 'hsl(220, 20%, 90%)',
+                },
+              }}
+            >
+              <BarChartIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
+      <Box sx={{ flex: 1, mt: 2, position: 'relative', minHeight: 0 }}>
         <ReactFlow
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
           onNodeClick={handleNodeClick}
           fitView
-          fitViewOptions={{ padding: 0.2 }}
+          fitViewOptions={{ padding: 0.1 }}
           proOptions={{ hideAttribution: true }}
           style={{
             backgroundColor: isDarkMode ? 'hsl(220, 20%, 10%)' : 'hsl(220, 20%, 98%)',
@@ -176,17 +364,7 @@ export function InfrastructureFlow({
               backgroundColor: isDarkMode ? 'hsl(220, 20%, 15%)' : 'white',
             }}
             maskColor={isDarkMode ? 'rgba(0, 0, 0, 0.6)' : 'rgba(255, 255, 255, 0.6)'}
-            nodeColor={(node) => {
-              const healthStatus = (node.data as unknown as InfrastructureNode)?.healthStatus;
-              if (healthStatus === 'UNHEALTHY') {
-                return isDarkMode ? 'hsl(0, 70%, 45%)' : 'hsl(0, 80%, 50%)';
-              }
-              if (healthStatus === 'DEGRADED') {
-                return isDarkMode ? 'hsl(45, 80%, 45%)' : 'hsl(45, 90%, 45%)';
-              }
-              // HEALTHY or UNKNOWN - use green
-              return isDarkMode ? 'hsl(120, 50%, 40%)' : 'hsl(120, 60%, 45%)';
-            }}
+            nodeColor={getNodeColor}
             nodeStrokeWidth={3}
             pannable
             zoomable
@@ -216,6 +394,12 @@ export function InfrastructureFlow({
         onPin={onPinNode ? handlePinNode : undefined}
         isPinned={selectedNode?.id === pinnedNodeId}
       />
+      <MetricsPanel
+        open={metricsPanelOpen}
+        onClose={handleMetricsPanelClose}
+        topology={topology}
+        summary={summary}
+      />
     </>
   );
-}
+});

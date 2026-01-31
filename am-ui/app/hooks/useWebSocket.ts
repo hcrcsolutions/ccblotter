@@ -97,10 +97,30 @@ const initialInfrastructure: InfrastructureTopology = {
 const initialInfrastructureSummary: InfrastructureSummary = {
   sipServerCount: 0,
   mediaServerCount: 0,
+  trunkCount: 0,
+  sbcCount: 0,
   totalActiveSessions: 0,
   healthyCount: 0,
   degradedCount: 0,
   unhealthyCount: 0,
+  nodeHealthyCount: 0,
+  nodeDegradedCount: 0,
+  nodeUnhealthyCount: 0,
+  totalCapacity: 0,
+  utilizationPercent: 0,
+  headroomSessions: 0,
+  sessionBreakdown: {
+    inboundSessions: 0,
+    outboundSessions: 0,
+    ivrSessions: 0,
+    queueSessions: 0,
+    agentSessions: 0,
+    onHoldSessions: 0,
+  },
+  avgLatencyMs: 0,
+  avgJitterMs: 0,
+  avgErrorRate: 0,
+  datacenterSummaries: [],
 };
 
 /**
@@ -108,13 +128,99 @@ const initialInfrastructureSummary: InfrastructureSummary = {
  */
 function calculateInfrastructureSummary(topology: InfrastructureTopology): InfrastructureSummary {
   const nodes = topology.nodes;
+
+  // Count by type
+  const trunkCount = nodes.filter(n => n.type === 'TRUNK').length;
+  const sbcCount = nodes.filter(n => n.type === 'SBC').length;
+  const sipServerCount = nodes.filter(n => n.type === 'SIP').length;
+  const mediaServerCount = nodes.filter(n => n.type === 'MEDIA').length;
+
+  // Health counts (all nodes)
+  const healthyCount = nodes.filter(n => n.healthStatus === 'HEALTHY').length;
+  const degradedCount = nodes.filter(n => n.healthStatus === 'DEGRADED').length;
+  const unhealthyCount = nodes.filter(n => n.healthStatus === 'UNHEALTHY').length;
+
+  // Node health counts (SIP + Media only)
+  const sipMediaNodes = nodes.filter(n => n.type === 'SIP' || n.type === 'MEDIA');
+  const nodeHealthyCount = sipMediaNodes.filter(n => n.healthStatus === 'HEALTHY').length;
+  const nodeDegradedCount = sipMediaNodes.filter(n => n.healthStatus === 'DEGRADED').length;
+  const nodeUnhealthyCount = sipMediaNodes.filter(n => n.healthStatus === 'UNHEALTHY').length;
+
+  // Capacity calculations
+  const totalActiveSessions = nodes.reduce((sum, n) => sum + n.activeSessions, 0);
+  const totalCapacity = nodes.reduce((sum, n) => sum + n.maxSessions, 0);
+  const utilizationPercent = totalCapacity > 0 ? (totalActiveSessions / totalCapacity) * 100 : 0;
+  const headroomSessions = totalCapacity - totalActiveSessions;
+
+  // Aggregate session breakdown (from nodes that have it)
+  const nodesWithBreakdown = nodes.filter(n => n.sessionBreakdown);
+  const sessionBreakdown = {
+    inboundSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.inboundSessions || 0), 0),
+    outboundSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.outboundSessions || 0), 0),
+    ivrSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.ivrSessions || 0), 0),
+    queueSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.queueSessions || 0), 0),
+    agentSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.agentSessions || 0), 0),
+    onHoldSessions: nodesWithBreakdown.reduce((sum, n) => sum + (n.sessionBreakdown?.onHoldSessions || 0), 0),
+  };
+
+  // Aggregate metrics (from nodes that have them)
+  const nodesWithMetrics = nodes.filter(n => n.metrics);
+  const avgLatencyMs = nodesWithMetrics.length > 0
+    ? Math.round(nodesWithMetrics.reduce((sum, n) => sum + (n.metrics?.latencyMs || 0), 0) / nodesWithMetrics.length)
+    : 0;
+  const avgJitterMs = nodesWithMetrics.length > 0
+    ? Math.round(nodesWithMetrics.reduce((sum, n) => sum + (n.metrics?.jitterMs || 0), 0) / nodesWithMetrics.length)
+    : 0;
+  const avgErrorRate = nodesWithMetrics.length > 0
+    ? Math.round(nodesWithMetrics.reduce((sum, n) => sum + (n.metrics?.errorRate || 0), 0) / nodesWithMetrics.length * 100) / 100
+    : 0;
+
+  // Group by datacenter
+  const dcMap = new Map<string, typeof nodes>();
+  nodes.forEach(n => {
+    const dc = n.datacenter || 'unknown';
+    if (!dcMap.has(dc)) {
+      dcMap.set(dc, []);
+    }
+    dcMap.get(dc)!.push(n);
+  });
+
+  const datacenterSummaries = Array.from(dcMap.entries()).map(([dcId, dcNodes]) => {
+    const dcSessions = dcNodes.reduce((sum, n) => sum + n.activeSessions, 0);
+    const dcCapacity = dcNodes.reduce((sum, n) => sum + n.maxSessions, 0);
+    return {
+      id: dcId,
+      region: dcNodes[0]?.region || 'unknown',
+      totalNodes: dcNodes.length,
+      healthyNodes: dcNodes.filter(n => n.healthStatus === 'HEALTHY').length,
+      degradedNodes: dcNodes.filter(n => n.healthStatus === 'DEGRADED').length,
+      unhealthyNodes: dcNodes.filter(n => n.healthStatus === 'UNHEALTHY').length,
+      totalSessions: dcSessions,
+      totalCapacity: dcCapacity,
+      utilizationPercent: dcCapacity > 0 ? (dcSessions / dcCapacity) * 100 : 0,
+    };
+  });
+
   return {
-    sipServerCount: nodes.filter(n => n.type === 'SIP').length,
-    mediaServerCount: nodes.filter(n => n.type === 'MEDIA').length,
-    totalActiveSessions: nodes.reduce((sum, n) => sum + n.activeSessions, 0),
-    healthyCount: nodes.filter(n => n.healthStatus === 'HEALTHY').length,
-    degradedCount: nodes.filter(n => n.healthStatus === 'DEGRADED').length,
-    unhealthyCount: nodes.filter(n => n.healthStatus === 'UNHEALTHY').length,
+    sipServerCount,
+    mediaServerCount,
+    trunkCount,
+    sbcCount,
+    totalActiveSessions,
+    healthyCount,
+    degradedCount,
+    unhealthyCount,
+    nodeHealthyCount,
+    nodeDegradedCount,
+    nodeUnhealthyCount,
+    totalCapacity,
+    utilizationPercent,
+    headroomSessions,
+    sessionBreakdown,
+    avgLatencyMs,
+    avgJitterMs,
+    avgErrorRate,
+    datacenterSummaries,
   };
 }
 

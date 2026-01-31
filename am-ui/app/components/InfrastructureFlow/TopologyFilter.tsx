@@ -1,7 +1,6 @@
 'use client';
 
-import * as React from 'react';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, memo } from 'react';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -20,6 +19,7 @@ import PushPinIcon from '@mui/icons-material/PushPin';
 import PushPinOutlinedIcon from '@mui/icons-material/PushPinOutlined';
 import { RiUnpinFill } from 'react-icons/ri';
 import { useThemeContext } from '../../context/ThemeContext';
+import { SERVER_TYPE_COLORS } from '../../lib/statusColors';
 import type { InfrastructureNode } from '../../types';
 
 interface TopologyFilterProps {
@@ -29,7 +29,7 @@ interface TopologyFilterProps {
   onUnpin: () => void;
 }
 
-export function TopologyFilter({
+export const TopologyFilter = memo(function TopologyFilter({
   nodes,
   pinnedNodeId,
   onPinNode,
@@ -40,10 +40,11 @@ export function TopologyFilter({
   const [filterOpen, setFilterOpen] = useState(false);
   const [searchFilter, setSearchFilter] = useState('');
 
-  // Get pinned node details
-  const pinnedNode = pinnedNodeId
-    ? nodes.find(n => n.id === pinnedNodeId)
-    : null;
+  // Get pinned node details (memoized for performance with large node arrays)
+  const pinnedNode = useMemo(
+    () => pinnedNodeId ? nodes.find(n => n.id === pinnedNodeId) ?? null : null,
+    [nodes, pinnedNodeId]
+  );
 
   // Filter nodes by search
   const matchedNodes = useMemo(() => {
@@ -56,33 +57,40 @@ export function TopologyFilter({
     );
   }, [nodes, searchFilter]);
 
-  const handleClearSearch = () => {
+  const handleClearSearch = useCallback(() => {
     setSearchFilter('');
-  };
+  }, []);
+
+  const handleOpenFilter = useCallback(() => {
+    setFilterOpen(true);
+  }, []);
+
+  const handleCloseFilter = useCallback(() => {
+    setFilterOpen(false);
+  }, []);
+
+  // Shared styles for edge-attached buttons
+  const edgeButtonBaseSx = useMemo(() => ({
+    position: 'absolute' as const,
+    left: 0,
+    zIndex: 5,
+    backgroundColor: isDarkMode ? 'rgba(18, 18, 18, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+    border: `1px solid ${isDarkMode ? '#444' : '#e0e0e0'}`,
+    borderLeft: 'none',
+    borderRadius: '0 8px 8px 0',
+    '&:hover': {
+      backgroundColor: isDarkMode ? 'rgba(30, 30, 30, 0.95)' : 'rgba(245, 245, 245, 0.95)',
+    },
+  }), [isDarkMode]);
 
   return (
     <>
       {/* Filter Toggle Button */}
       {!filterOpen && (
         <IconButton
-          onClick={() => setFilterOpen(true)}
-          sx={{
-            position: 'absolute',
-            top: 10,
-            left: 0,
-            zIndex: 5,
-            backgroundColor: isDarkMode
-              ? 'rgba(18, 18, 18, 0.95)'
-              : 'rgba(255, 255, 255, 0.95)',
-            border: `1px solid ${isDarkMode ? '#444' : '#e0e0e0'}`,
-            borderLeft: 'none',
-            borderRadius: '0 8px 8px 0',
-            '&:hover': {
-              backgroundColor: isDarkMode
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(245, 245, 245, 0.95)',
-            },
-          }}
+          onClick={handleOpenFilter}
+          aria-label="Open filter panel"
+          sx={{ ...edgeButtonBaseSx, top: 10 }}
         >
           <FilterListIcon />
         </IconButton>
@@ -92,24 +100,11 @@ export function TopologyFilter({
       {!filterOpen && pinnedNode && (
         <IconButton
           onClick={onUnpin}
-          title={`Unpin ${pinnedNode.hostname}`}
+          aria-label={`Unpin ${pinnedNode.hostname}`}
           sx={{
-            position: 'absolute',
+            ...edgeButtonBaseSx,
             top: 58,
-            left: 0,
-            zIndex: 5,
-            backgroundColor: isDarkMode
-              ? 'rgba(18, 18, 18, 0.95)'
-              : 'rgba(255, 255, 255, 0.95)',
-            border: `1px solid ${isDarkMode ? '#444' : '#e0e0e0'}`,
-            borderLeft: 'none',
-            borderRadius: '0 8px 8px 0',
             color: isDarkMode ? '#fff' : '#000',
-            '&:hover': {
-              backgroundColor: isDarkMode
-                ? 'rgba(30, 30, 30, 0.95)'
-                : 'rgba(245, 245, 245, 0.95)',
-            },
           }}
         >
           <RiUnpinFill size={24} />
@@ -147,7 +142,8 @@ export function TopologyFilter({
             </Typography>
             <IconButton
               size="small"
-              onClick={() => setFilterOpen(false)}
+              onClick={handleCloseFilter}
+              aria-label="Close filter panel"
               sx={{ ml: 1 }}
             >
               <CloseIcon fontSize="small" />
@@ -166,7 +162,7 @@ export function TopologyFilter({
                 sx={{ maxWidth: '100%' }}
               />
               <Typography variant="caption" color="text.secondary" display="block" mt={0.5}>
-                {pinnedNode.type === 'SIP' ? 'SIP Server' : 'Media Server'} • Showing connected nodes only
+                {SERVER_TYPE_COLORS[pinnedNode.type].label} • Showing connected nodes only
               </Typography>
             </Box>
           )}
@@ -186,22 +182,24 @@ export function TopologyFilter({
 
           {searchFilter && (
             <Typography variant="body2" fontWeight="bold" color="primary" display="block" mt={1}>
-              {matchedNodes.length} {matchedNodes.length === 1 ? 'match' : 'matches'}
+              {matchedNodes.length > 5
+                ? `Showing 5 of ${matchedNodes.length} matches`
+                : `${matchedNodes.length} ${matchedNodes.length === 1 ? 'match' : 'matches'}`}
             </Typography>
           )}
 
           {/* Show matched nodes (up to 5) */}
-          {matchedNodes.length > 0 && matchedNodes.length <= 5 && (
+          {matchedNodes.length > 0 && (
             <Table size="small" sx={{ mt: 1 }}>
               <TableBody>
-                {matchedNodes.map((node) => (
+                {matchedNodes.slice(0, 5).map((node) => (
                   <TableRow key={node.id} hover>
                     <TableCell sx={{ py: 0.5, px: 1 }}>
                       <Typography variant="body2" noWrap sx={{ maxWidth: 180 }}>
                         {node.hostname}
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {node.type === 'SIP' ? 'SIP Server' : 'Media Server'}
+                        {SERVER_TYPE_COLORS[node.type].label}
                       </Typography>
                     </TableCell>
                     <TableCell sx={{ py: 0.5, px: 1, width: 40 }}>
@@ -212,7 +210,7 @@ export function TopologyFilter({
                           setFilterOpen(false);
                           setSearchFilter('');
                         }}
-                        title={pinnedNodeId === node.id ? 'Pinned' : 'Pin to filter'}
+                        aria-label={pinnedNodeId === node.id ? 'Pinned' : 'Pin to filter'}
                         disabled={pinnedNodeId === node.id}
                       >
                         {pinnedNodeId === node.id ? (
@@ -241,4 +239,4 @@ export function TopologyFilter({
       </Collapse>
     </>
   );
-}
+});

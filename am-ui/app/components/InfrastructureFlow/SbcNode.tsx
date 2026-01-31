@@ -7,21 +7,21 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
-import DnsIcon from '@mui/icons-material/Dns';
+import SecurityIcon from '@mui/icons-material/Security';
 import BuildIcon from '@mui/icons-material/Build';
 import { useThemeContext } from '../../context/ThemeContext';
-import { SERVER_TYPE_COLORS, SERVER_HEALTH_COLORS, getStatusColors, getLatencyQualityColor, CAPACITY_THRESHOLDS, CPU_THRESHOLDS } from '../../lib/statusColors';
+import { SERVER_TYPE_COLORS, SERVER_HEALTH_COLORS, getStatusColors, getLatencyQualityColor, CAPACITY_THRESHOLDS } from '../../lib/statusColors';
 import type { InfrastructureNode } from '../../types';
 
-interface SipServerNodeProps {
+interface SbcNodeProps {
   data: InfrastructureNode;
 }
 
-function SipServerNodeComponent({ data }: SipServerNodeProps) {
+function SbcNodeComponent({ data }: SbcNodeProps) {
   const { mode } = useThemeContext();
   const isDarkMode = mode === 'dark';
 
-  const serverColors = getStatusColors(SERVER_TYPE_COLORS.SIP, isDarkMode);
+  const serverColors = getStatusColors(SERVER_TYPE_COLORS.SBC, isDarkMode);
   const healthColorSet = SERVER_HEALTH_COLORS[data.healthStatus] || SERVER_HEALTH_COLORS.UNKNOWN;
   const healthColors = getStatusColors(healthColorSet, isDarkMode);
 
@@ -75,8 +75,10 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
             <BuildIcon sx={{ fontSize: 12, color: isDarkMode ? 'hsl(45, 90%, 70%)' : 'hsl(45, 80%, 35%)' }} />
           </Box>
         )}
+
+        {/* Header: Icon + Hostname */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <DnsIcon sx={{ color: serverColors.text, fontSize: 20 }} />
+          <SecurityIcon sx={{ color: serverColors.text, fontSize: 20 }} />
           <Typography
             variant="subtitle2"
             sx={{
@@ -92,9 +94,10 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
           </Typography>
         </Box>
 
+        {/* Type + Health Status */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
           <Typography variant="caption" sx={{ color: serverColors.text }}>
-            SIP
+            SBC
           </Typography>
           <Chip
             label={healthColorSet.label}
@@ -108,7 +111,7 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
           />
         </Box>
 
-        {/* Metrics Row: Latency + CPU */}
+        {/* Metrics Row: Latency + Error Rate */}
         {data.metrics && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography
@@ -122,14 +125,15 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
             <Typography
               variant="caption"
               sx={{
-                color: data.metrics.cpuPercent > CPU_THRESHOLDS.WARNING ? 'warning.main' : serverColors.text,
+                color: data.metrics.errorRate > 1 ? 'error.main' : serverColors.text,
               }}
             >
-              CPU {Math.round(data.metrics.cpuPercent)}%
+              {data.metrics.errorRate.toFixed(1)} err/m
             </Typography>
           </Box>
         )}
 
+        {/* Capacity */}
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="caption" sx={{ color: serverColors.text }}>
@@ -162,4 +166,4 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
   );
 }
 
-export const SipServerNode = memo(SipServerNodeComponent);
+export const SbcNode = memo(SbcNodeComponent);

@@ -7,21 +7,21 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import LinearProgress from '@mui/material/LinearProgress';
-import DnsIcon from '@mui/icons-material/Dns';
+import CableIcon from '@mui/icons-material/Cable';
 import BuildIcon from '@mui/icons-material/Build';
 import { useThemeContext } from '../../context/ThemeContext';
-import { SERVER_TYPE_COLORS, SERVER_HEALTH_COLORS, getStatusColors, getLatencyQualityColor, CAPACITY_THRESHOLDS, CPU_THRESHOLDS } from '../../lib/statusColors';
+import { SERVER_TYPE_COLORS, SERVER_HEALTH_COLORS, getStatusColors, getLatencyQualityColor, CAPACITY_THRESHOLDS } from '../../lib/statusColors';
 import type { InfrastructureNode } from '../../types';
 
-interface SipServerNodeProps {
+interface TrunkNodeProps {
   data: InfrastructureNode;
 }
 
-function SipServerNodeComponent({ data }: SipServerNodeProps) {
+function TrunkNodeComponent({ data }: TrunkNodeProps) {
   const { mode } = useThemeContext();
   const isDarkMode = mode === 'dark';
 
-  const serverColors = getStatusColors(SERVER_TYPE_COLORS.SIP, isDarkMode);
+  const serverColors = getStatusColors(SERVER_TYPE_COLORS.TRUNK, isDarkMode);
   const healthColorSet = SERVER_HEALTH_COLORS[data.healthStatus] || SERVER_HEALTH_COLORS.UNKNOWN;
   const healthColors = getStatusColors(healthColorSet, isDarkMode);
 
@@ -35,7 +35,6 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
 
   return (
     <>
-      <Handle type="target" position={Position.Left} />
       <Box
         sx={{
           width: 180,
@@ -75,8 +74,10 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
             <BuildIcon sx={{ fontSize: 12, color: isDarkMode ? 'hsl(45, 90%, 70%)' : 'hsl(45, 80%, 35%)' }} />
           </Box>
         )}
+
+        {/* Header: Icon + Carrier Name */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-          <DnsIcon sx={{ color: serverColors.text, fontSize: 20 }} />
+          <CableIcon sx={{ color: serverColors.text, fontSize: 20 }} />
           <Typography
             variant="subtitle2"
             sx={{
@@ -88,13 +89,14 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
               flex: 1,
             }}
           >
-            {data.hostname.split('.')[0]}
+            {data.carrierName || data.hostname}
           </Typography>
         </Box>
 
+        {/* Trunk Group Badge */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
           <Typography variant="caption" sx={{ color: serverColors.text }}>
-            SIP
+            {data.trunkGroup === 'primary' ? 'Primary' : 'Backup'}
           </Typography>
           <Chip
             label={healthColorSet.label}
@@ -108,32 +110,29 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
           />
         </Box>
 
-        {/* Metrics Row: Latency + CPU */}
+        {/* Latency Display */}
         {data.metrics && (
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+            <Typography variant="caption" sx={{ color: serverColors.text }}>
+              Latency
+            </Typography>
             <Typography
               variant="caption"
               sx={{
+                fontWeight: 600,
                 color: latencyColors?.text || serverColors.text,
               }}
             >
               {data.metrics.latencyMs}ms
             </Typography>
-            <Typography
-              variant="caption"
-              sx={{
-                color: data.metrics.cpuPercent > CPU_THRESHOLDS.WARNING ? 'warning.main' : serverColors.text,
-              }}
-            >
-              CPU {Math.round(data.metrics.cpuPercent)}%
-            </Typography>
           </Box>
         )}
 
+        {/* Capacity */}
         <Box>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
             <Typography variant="caption" sx={{ color: serverColors.text }}>
-              Sessions
+              Capacity
             </Typography>
             <Typography variant="caption" sx={{ color: serverColors.text, fontWeight: 600 }}>
               {data.activeSessions}/{data.maxSessions}
@@ -162,4 +161,4 @@ function SipServerNodeComponent({ data }: SipServerNodeProps) {
   );
 }
 
-export const SipServerNode = memo(SipServerNodeComponent);
+export const TrunkNode = memo(TrunkNodeComponent);

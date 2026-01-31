@@ -85,12 +85,61 @@ export type ConnectionState = 'connecting' | 'connected' | 'disconnected' | 'err
 /**
  * Infrastructure server types.
  */
-export type InfraServerType = 'SIP' | 'MEDIA';
+export type InfraServerType = 'TRUNK' | 'SBC' | 'SIP' | 'MEDIA';
 
 /**
  * Server health status.
  */
 export type ServerHealthStatus = 'HEALTHY' | 'DEGRADED' | 'UNHEALTHY' | 'UNKNOWN';
+
+/**
+ * Quality metrics for a node.
+ */
+export interface NodeMetrics {
+  cpuPercent: number;
+  memoryPercent: number;
+  latencyMs: number;
+  jitterMs: number;
+  packetLossPercent: number;
+  errorRate: number;
+  mosScore: number; // 10-50 (1.0-5.0 scaled)
+}
+
+/**
+ * Session breakdown by direction and state.
+ */
+export interface SessionBreakdown {
+  inboundSessions: number;
+  outboundSessions: number;
+  ivrSessions: number;
+  queueSessions: number;
+  agentSessions: number;
+  onHoldSessions: number;
+}
+
+/**
+ * Trend data point for history.
+ */
+export interface TrendDataPoint {
+  timestamp: string; // ISO timestamp
+  activeSessions: number;
+  cpuPercent: number;
+}
+
+/**
+ * Datacenter summary statistics.
+ */
+export interface DatacenterSummary {
+  id: string;
+  region: string;
+  totalNodes: number;
+  healthyNodes: number;
+  degradedNodes: number;
+  unhealthyNodes: number;
+  totalSessions: number;
+  totalCapacity: number;
+  utilizationPercent: number;
+}
 
 /**
  * Represents an infrastructure server node.
@@ -105,6 +154,26 @@ export interface InfrastructureNode {
   maxSessions: number;
   healthStatus: ServerHealthStatus;
   position?: { x: number; y: number }; // Optional saved position
+
+  // Datacenter grouping
+  datacenter: string; // e.g., "dc1", "dc2"
+  region: string; // e.g., "us-east", "us-west"
+
+  // Quality metrics
+  metrics: NodeMetrics | null;
+
+  // Session breakdown (null for TRUNK/SBC)
+  sessionBreakdown: SessionBreakdown | null;
+
+  // Trend data (last 5 minutes, ~60 points at 5-sec intervals)
+  trendHistory: TrendDataPoint[];
+
+  // Trunk-specific fields
+  carrierName: string | null; // Only for TRUNK type
+  trunkGroup: string | null; // e.g., "primary", "backup"
+
+  // Maintenance mode
+  maintenanceMode: boolean;
 }
 
 /**
@@ -114,6 +183,9 @@ export interface InfrastructureEdge {
   id: string;
   sourceId: string;
   targetId: string;
+  bandwidthMbps?: number;
+  latencyMs?: number;
+  activeFlows?: number;
 }
 
 /**
@@ -131,10 +203,23 @@ export interface InfrastructureTopology {
 export interface InfrastructureSummary {
   sipServerCount: number;
   mediaServerCount: number;
+  trunkCount: number;
+  sbcCount: number;
   totalActiveSessions: number;
   healthyCount: number;
   degradedCount: number;
   unhealthyCount: number;
+  nodeHealthyCount: number;    // SIP + Media only
+  nodeDegradedCount: number;   // SIP + Media only
+  nodeUnhealthyCount: number;  // SIP + Media only
+  totalCapacity: number;
+  utilizationPercent: number;
+  headroomSessions: number;
+  sessionBreakdown: SessionBreakdown;
+  avgLatencyMs: number;
+  avgJitterMs: number;
+  avgErrorRate: number;
+  datacenterSummaries: DatacenterSummary[];
 }
 
 /**

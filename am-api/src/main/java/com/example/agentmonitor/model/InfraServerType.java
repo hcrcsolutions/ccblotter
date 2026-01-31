@@ -1,6 +1,8 @@
 package com.example.agentmonitor.model;
 
 public enum InfraServerType {
-    SIP,
-    MEDIA
+    TRUNK,    // Carrier connection
+    SBC,      // Session Border Controller
+    SIP,      // SIP Proxy Server
+    MEDIA     // Media Server
 }
