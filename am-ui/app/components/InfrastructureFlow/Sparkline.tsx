@@ -116,10 +116,10 @@ export const Sparkline = memo(function Sparkline({
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {/* End point dot */}
+        {/* End point dot - offset by radius to prevent clipping */}
         {data.length > 0 && (
           <circle
-            cx={width}
+            cx={width - 2}
             cy={height - ((data[data.length - 1][valueKey] - min) / (max - min || 1)) * (height - 4) - 2}
             r={2}
             fill={strokeColor}
