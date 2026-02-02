@@ -318,6 +318,6 @@ public class EdgeManagementService {
             event.put("targetId", targetId);
         }
         event.put("timestamp", Instant.now().toString());
-        messagingTemplate.convertAndSend("/topic/topology/changes", event);
+        messagingTemplate.convertAndSend("/topic/topology/changes", (Object) event);
     }
 }

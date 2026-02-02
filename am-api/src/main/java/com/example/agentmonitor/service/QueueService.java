@@ -205,7 +205,7 @@ public class QueueService {
         payload.put("stats", stats);
 
         log.debug("Broadcasting {} queued calls", calls.size());
-        messagingTemplate.convertAndSend("/topic/queue", payload);
+        messagingTemplate.convertAndSend("/topic/queue", (Object) payload);
     }
 
     private void ensureRedisAvailable() {

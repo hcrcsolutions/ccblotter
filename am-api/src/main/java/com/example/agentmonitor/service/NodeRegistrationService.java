@@ -256,6 +256,6 @@ public class NodeRegistrationService {
                 "nodeId", nodeId,
                 "timestamp", Instant.now().toString()
         );
-        messagingTemplate.convertAndSend("/topic/topology/changes", event);
+        messagingTemplate.convertAndSend("/topic/topology/changes", (Object) event);
     }
 }

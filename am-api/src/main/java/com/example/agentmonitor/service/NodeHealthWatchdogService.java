@@ -120,7 +120,7 @@ public class NodeHealthWatchdogService {
                 "status", status.name(),
                 "timestamp", Instant.now().toString()
         );
-        messagingTemplate.convertAndSend("/topic/topology/changes", event);
+        messagingTemplate.convertAndSend("/topic/topology/changes", (Object) event);
     }
 
     private void broadcastNodeRemoval(String nodeId) {
@@ -129,7 +129,7 @@ public class NodeHealthWatchdogService {
                 "nodeId", nodeId,
                 "timestamp", Instant.now().toString()
         );
-        messagingTemplate.convertAndSend("/topic/topology/changes", event);
+        messagingTemplate.convertAndSend("/topic/topology/changes", (Object) event);
     }
 
     private void broadcastTopologyChange() {
@@ -137,6 +137,6 @@ public class NodeHealthWatchdogService {
                 "type", "TOPOLOGY_UPDATED",
                 "timestamp", Instant.now().toString()
         );
-        messagingTemplate.convertAndSend("/topic/topology/changes", event);
+        messagingTemplate.convertAndSend("/topic/topology/changes", (Object) event);
     }
 }
