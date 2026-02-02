@@ -141,8 +141,8 @@ export const SERVER_TYPE_COLORS: Record<InfraServerType, StatusColorSet> = {
     label: 'SIP Server',
   },
   MEDIA: {
-    light: { bg: 'hsl(280, 80%, 92%)', text: 'hsl(280, 70%, 35%)' },
-    dark: { bg: 'hsl(280, 50%, 25%)', text: 'hsl(280, 70%, 70%)' },
+    light: { bg: 'hsl(120, 80%, 92%)', text: 'hsl(120, 70%, 35%)' },
+    dark: { bg: 'hsl(120, 50%, 25%)', text: 'hsl(120, 70%, 60%)' },
     label: 'Media Server',
   },
 };
@@ -157,13 +157,13 @@ export const SERVER_HEALTH_COLORS: Record<ServerHealthStatus, StatusColorSet> = 
     label: 'Healthy',
   },
   DEGRADED: {
-    light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(45, 80%, 30%)' },
-    dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(45, 90%, 65%)' },
+    light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(50, 100%, 50%)' },
+    dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(50, 100%, 55%)' },
     label: 'Degraded',
   },
   UNHEALTHY: {
-    light: { bg: 'hsl(0, 90%, 92%)', text: 'hsl(0, 70%, 35%)' },
-    dark: { bg: 'hsl(0, 60%, 25%)', text: 'hsl(0, 80%, 70%)' },
+    light: { bg: 'hsl(0, 90%, 92%)', text: 'hsl(0, 100%, 50%)' },
+    dark: { bg: 'hsl(0, 60%, 25%)', text: 'hsl(0, 100%, 55%)' },
     label: 'Unhealthy',
   },
   UNKNOWN: {
