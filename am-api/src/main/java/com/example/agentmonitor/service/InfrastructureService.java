@@ -1,25 +1,29 @@
 package com.example.agentmonitor.service;
 
-import com.example.agentmonitor.model.InfrastructureTopology;
+import com.example.agentmonitor.entity.EdgeEntity;
+import com.example.agentmonitor.entity.NodeEntity;
+import com.example.agentmonitor.model.*;
+import com.example.agentmonitor.repository.EdgeRepository;
+import com.example.agentmonitor.repository.NodeRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import jakarta.annotation.PostConstruct;
-import java.util.concurrent.atomic.AtomicReference;
+import java.time.Instant;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Service for infrastructure topology data.
  *
- * This service manages the infrastructure topology state and handles:
- * - Initial topology generation via the data provider
- * - Periodic updates via the data provider
- * - Broadcasting updates via WebSocket
+ * This service provides the infrastructure topology by reading:
+ * - Static topology (nodes, edges) from PostgreSQL
+ * - Dynamic state (sessions, metrics, trends) from Redis
  *
- * The actual data generation is delegated to an InfrastructureDataProvider
- * implementation, which can be swapped based on the active Spring profile.
+ * Topology changes are broadcast via WebSocket to connected clients.
  */
 @Service
 @Slf4j
@@ -27,44 +31,92 @@ import java.util.concurrent.atomic.AtomicReference;
 public class InfrastructureService {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final InfrastructureDataProvider dataProvider;
-
-    private final AtomicReference<InfrastructureTopology> currentTopology = new AtomicReference<>();
-
-    @PostConstruct
-    public void init() {
-        InfrastructureTopology topology = dataProvider.generateInitialTopology();
-        currentTopology.set(topology);
-        log.info("Infrastructure topology initialized with {} nodes using {}",
-                topology.getNodes().size(),
-                dataProvider.getClass().getSimpleName());
-    }
+    private final NodeRepository nodeRepository;
+    private final EdgeRepository edgeRepository;
+    private final RedisStateService redisStateService;
 
     /**
      * Get current infrastructure topology.
+     * Combines static data from PostgreSQL with dynamic data from Redis.
      */
+    @Transactional(readOnly = true)
     public InfrastructureTopology getTopology() {
-        return currentTopology.get();
+        List<NodeEntity> nodeEntities = nodeRepository.findAllWithDatacenter();
+        List<EdgeEntity> edgeEntities = edgeRepository.findAllWithNodes();
+
+        List<InfrastructureNode> nodes = nodeEntities.stream()
+                .map(this::toInfrastructureNode)
+                .collect(Collectors.toList());
+
+        List<InfrastructureEdge> edges = edgeEntities.stream()
+                .map(this::toInfrastructureEdge)
+                .collect(Collectors.toList());
+
+        return InfrastructureTopology.builder()
+                .nodes(nodes)
+                .edges(edges)
+                .lastUpdated(Instant.now())
+                .build();
     }
 
     /**
      * Broadcast infrastructure updates via WebSocket.
+     * Called periodically and on topology changes.
      */
+    @Scheduled(fixedRate = 5000)
     public void broadcastTopology() {
-        InfrastructureTopology topology = currentTopology.get();
-        messagingTemplate.convertAndSend("/topic/infrastructure", topology);
+        try {
+            InfrastructureTopology topology = getTopology();
+            messagingTemplate.convertAndSend("/topic/infrastructure", topology);
+            log.debug("Broadcast topology with {} nodes and {} edges",
+                    topology.getNodes().size(),
+                    topology.getEdges().size());
+        } catch (Exception e) {
+            log.error("Failed to broadcast topology", e);
+        }
     }
 
     /**
-     * Update topology with changes from the data provider every 5 seconds.
+     * Convert NodeEntity to InfrastructureNode, enriching with Redis data.
      */
-    @Scheduled(fixedRate = 5000)
-    public void updateTopology() {
-        InfrastructureTopology current = currentTopology.get();
-        if (current == null) return;
+    private InfrastructureNode toInfrastructureNode(NodeEntity entity) {
+        String nodeId = entity.getId();
 
-        InfrastructureTopology updated = dataProvider.updateTopology(current);
-        currentTopology.set(updated);
-        broadcastTopology();
+        // Get dynamic data from Redis
+        Integer activeSessions = redisStateService.getActiveSessions(nodeId);
+        NodeMetrics metrics = redisStateService.getNodeMetrics(nodeId);
+        SessionBreakdown sessionBreakdown = redisStateService.getSessionBreakdown(nodeId);
+        List<TrendDataPoint> trendHistory = redisStateService.getTrendHistory(nodeId);
+
+        return InfrastructureNode.builder()
+                .id(entity.getId())
+                .type(entity.getType())
+                .hostname(entity.getHostname())
+                .ipAddress(entity.getIpAddress())
+                .startTime(entity.getRegisteredAt())
+                .activeSessions(activeSessions != null ? activeSessions : 0)
+                .maxSessions(entity.getMaxSessions())
+                .healthStatus(entity.getHealthStatus())
+                .datacenter(entity.getDatacenter().getId())
+                .region(entity.getDatacenter().getRegion())
+                .metrics(metrics)
+                .sessionBreakdown(sessionBreakdown)
+                .trendHistory(trendHistory)
+                .carrierName(entity.getCarrierName())
+                .trunkGroup(entity.getTrunkGroup())
+                .maintenanceMode(entity.isMaintenanceMode())
+                .build();
+    }
+
+    /**
+     * Convert EdgeEntity to InfrastructureEdge.
+     */
+    private InfrastructureEdge toInfrastructureEdge(EdgeEntity entity) {
+        return InfrastructureEdge.builder()
+                .id(entity.getId())
+                .sourceId(entity.getSource().getId())
+                .targetId(entity.getTarget().getId())
+                .bandwidthMbps(entity.getBandwidthMbps())
+                .build();
     }
 }

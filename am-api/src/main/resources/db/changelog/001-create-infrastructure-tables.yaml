@@ -1,0 +1,260 @@
+databaseChangeLog:
+  - changeSet:
+      id: 1
+      author: am-api
+      comment: Create osccstate schema
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS osccstate
+
+  - changeSet:
+      id: 2
+      author: am-api
+      comment: Create datacenters table
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: datacenters
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(50)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: region
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: display_name
+                  type: VARCHAR(100)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+
+  - changeSet:
+      id: 3
+      author: am-api
+      comment: Create nodes table
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: nodes
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(50)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: type
+                  type: VARCHAR(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: hostname
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ip_address
+                  type: VARCHAR(45)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: datacenter_id
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_sessions
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: carrier_name
+                  type: VARCHAR(100)
+              - column:
+                  name: trunk_group
+                  type: VARCHAR(50)
+              - column:
+                  name: maintenance_mode
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: registration_source
+                  type: VARCHAR(20)
+                  defaultValue: SELF
+                  constraints:
+                    nullable: false
+              - column:
+                  name: registered_at
+                  type: TIMESTAMP
+                  constraints:
+                    nullable: false
+              - column:
+                  name: last_heartbeat_at
+                  type: TIMESTAMP
+              - column:
+                  name: health_status
+                  type: VARCHAR(20)
+                  defaultValue: UNKNOWN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: metadata
+                  type: JSONB
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: nodes
+            baseColumnNames: datacenter_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: datacenters
+            referencedColumnNames: id
+            constraintName: fk_nodes_datacenter
+        - sql:
+            sql: ALTER TABLE osccstate.nodes ADD CONSTRAINT chk_nodes_type CHECK (type IN ('TRUNK', 'SBC', 'SIP', 'MEDIA'))
+
+  - changeSet:
+      id: 4
+      author: am-api
+      comment: Create edges table
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: edges
+            columns:
+              - column:
+                  name: id
+                  type: VARCHAR(100)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: source_id
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_id
+                  type: VARCHAR(50)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: bandwidth_mbps
+                  type: INT
+              - column:
+                  name: created_by
+                  type: VARCHAR(50)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: edges
+            baseColumnNames: source_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: nodes
+            referencedColumnNames: id
+            constraintName: fk_edges_source
+            onDelete: CASCADE
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: edges
+            baseColumnNames: target_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: nodes
+            referencedColumnNames: id
+            constraintName: fk_edges_target
+            onDelete: CASCADE
+        - addUniqueConstraint:
+            schemaName: osccstate
+            tableName: edges
+            columnNames: source_id, target_id
+            constraintName: uq_edges_source_target
+
+  - changeSet:
+      id: 5
+      author: am-api
+      comment: Create indexes for common queries
+      changes:
+        - createIndex:
+            schemaName: osccstate
+            tableName: nodes
+            indexName: idx_nodes_datacenter
+            columns:
+              - column:
+                  name: datacenter_id
+        - createIndex:
+            schemaName: osccstate
+            tableName: nodes
+            indexName: idx_nodes_type
+            columns:
+              - column:
+                  name: type
+        - createIndex:
+            schemaName: osccstate
+            tableName: nodes
+            indexName: idx_nodes_health
+            columns:
+              - column:
+                  name: health_status
+        - createIndex:
+            schemaName: osccstate
+            tableName: nodes
+            indexName: idx_nodes_heartbeat
+            columns:
+              - column:
+                  name: last_heartbeat_at
+        - createIndex:
+            schemaName: osccstate
+            tableName: nodes
+            indexName: idx_nodes_type_datacenter
+            columns:
+              - column:
+                  name: type
+              - column:
+                  name: datacenter_id
+        - createIndex:
+            schemaName: osccstate
+            tableName: edges
+            indexName: idx_edges_source
+            columns:
+              - column:
+                  name: source_id
+        - createIndex:
+            schemaName: osccstate
+            tableName: edges
+            indexName: idx_edges_target
+            columns:
+              - column:
+                  name: target_id

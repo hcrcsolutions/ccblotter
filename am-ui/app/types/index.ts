@@ -237,3 +237,87 @@ export interface DashboardState {
   infrastructureSummary: InfrastructureSummary;
   reconnect: () => void;
 }
+
+// ============================================================================
+// Editor Types - For infrastructure configuration
+// ============================================================================
+
+/**
+ * Datacenter configuration for editor.
+ */
+export interface Datacenter {
+  id: string;
+  region: string;
+  displayName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Request to create/update a datacenter.
+ */
+export interface DatacenterRequest {
+  id: string;
+  region: string;
+  displayName?: string;
+}
+
+/**
+ * Node registration request for creating Trunks/SBCs.
+ */
+export interface NodeRegistrationRequest {
+  id: string;
+  type: InfraServerType;
+  hostname: string;
+  ipAddress: string;
+  datacenter: string;
+  region?: string;
+  maxSessions: number;
+  carrierName?: string;
+  trunkGroup?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Node registration response.
+ */
+export interface NodeRegistrationResponse {
+  id: string;
+  status: ServerHealthStatus;
+  registeredAt: string;
+  reregisteredAt?: string;
+  reregistered: boolean;
+  heartbeatIntervalSeconds: number;
+  heartbeatTimeoutSeconds: number;
+  message?: string;
+}
+
+/**
+ * Node query response from API.
+ */
+export interface NodeQueryResponse {
+  nodes: NodeSummary[];
+  total: number;
+  filter: {
+    type?: InfraServerType;
+    datacenter?: string;
+    status?: ServerHealthStatus;
+  };
+}
+
+/**
+ * Node summary for query results.
+ */
+export interface NodeSummary {
+  id: string;
+  type: InfraServerType;
+  hostname: string;
+  ipAddress: string;
+  datacenter: string;
+  region: string;
+  status: ServerHealthStatus;
+  maxSessions: number;
+  activeSessions: number;
+  availableCapacity: number;
+  lastHeartbeat: string | null;
+}
