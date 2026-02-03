@@ -182,14 +182,15 @@ public class NodeRegistrationService {
 
         List<NodeEntity> nodes;
 
+        // Use JOIN FETCH queries to eagerly load datacenter and prevent LazyInitializationException
         if (type != null && datacenter != null) {
-            nodes = nodeRepository.findByTypeAndDatacenterId(type, datacenter);
+            nodes = nodeRepository.findByTypeAndDatacenterIdWithDatacenter(type, datacenter);
         } else if (type != null) {
-            nodes = nodeRepository.findByType(type);
+            nodes = nodeRepository.findByTypeWithDatacenter(type);
         } else if (datacenter != null) {
-            nodes = nodeRepository.findByDatacenterId(datacenter);
+            nodes = nodeRepository.findByDatacenterIdWithDatacenter(datacenter);
         } else {
-            nodes = nodeRepository.findAll();
+            nodes = nodeRepository.findAllWithDatacenter();
         }
 
         // Filter by status

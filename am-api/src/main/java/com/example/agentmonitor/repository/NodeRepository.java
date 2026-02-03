@@ -21,6 +21,9 @@ public interface NodeRepository extends JpaRepository<NodeEntity, String> {
 
     List<NodeEntity> findByType(InfraServerType type);
 
+    @Query("SELECT n FROM NodeEntity n JOIN FETCH n.datacenter WHERE n.type = :type")
+    List<NodeEntity> findByTypeWithDatacenter(@Param("type") InfraServerType type);
+
     List<NodeEntity> findByHealthStatus(ServerHealthStatus status);
 
     @Query("SELECT n FROM NodeEntity n JOIN FETCH n.datacenter WHERE n.healthStatus = :status")
@@ -29,8 +32,16 @@ public interface NodeRepository extends JpaRepository<NodeEntity, String> {
     @Query("SELECT n FROM NodeEntity n WHERE n.datacenter.id = :datacenterId")
     List<NodeEntity> findByDatacenterId(@Param("datacenterId") String datacenterId);
 
+    @Query("SELECT n FROM NodeEntity n JOIN FETCH n.datacenter WHERE n.datacenter.id = :datacenterId")
+    List<NodeEntity> findByDatacenterIdWithDatacenter(@Param("datacenterId") String datacenterId);
+
     @Query("SELECT n FROM NodeEntity n WHERE n.type = :type AND n.datacenter.id = :datacenterId")
     List<NodeEntity> findByTypeAndDatacenterId(
+            @Param("type") InfraServerType type,
+            @Param("datacenterId") String datacenterId);
+
+    @Query("SELECT n FROM NodeEntity n JOIN FETCH n.datacenter WHERE n.type = :type AND n.datacenter.id = :datacenterId")
+    List<NodeEntity> findByTypeAndDatacenterIdWithDatacenter(
             @Param("type") InfraServerType type,
             @Param("datacenterId") String datacenterId);
 
