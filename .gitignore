@@ -1,0 +1,7 @@
+# Node.js (accidental root-level npm artifacts)
+node_modules/
+package.json
+package-lock.json
+
+# Claude Code
+.claude/
