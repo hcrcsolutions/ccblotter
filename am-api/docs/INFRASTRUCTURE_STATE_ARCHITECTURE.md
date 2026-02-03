@@ -5,9 +5,9 @@
 This document describes the architecture for managing infrastructure topology state across multiple Kubernetes pods. The system supports:
 
 - **Self-registration** of SIP and Media servers via REST API
-- **Heartbeat-based liveness tracking** (30s interval, 60s timeout)
+- **Heartbeat-based liveness tracking** (10s interval, 30s timeout)
 - **Dynamic edge management** where SIP servers announce their media connections
-- **Consistent state** across all am-api pods via PostgreSQL + Redis
+- **Consistent state** across all oscc-state pods via PostgreSQL + Redis
 
 ---
 
@@ -23,7 +23,7 @@ This document describes the architecture for managing infrastructure topology st
 │  │ On start:    │  │ On start:    │  │ On start:    │                       │
 │  │  POST /register  POST /register   POST /register │                       │
 │  │              │  │              │  │              │                       │
-│  │ Every 30s:   │  │ Every 30s:   │  │ Every 30s:   │                       │
+│  │ Every 10s:   │  │ Every 10s:   │  │ Every 10s:   │                       │
 │  │  POST /heartbeat POST /heartbeat  POST /heartbeat│                       │
 │  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                       │
 │         │                 │                 │                                │
@@ -48,7 +48,7 @@ This document describes the architecture for managing infrastructure topology st
 │  │  └─────────────────────────────────────────────────────────────────┘  │  │
 │  │  ┌─────────────────────────────────────────────────────────────────┐  │  │
 │  │  │ NodeHealthWatchdog (scheduled every 15s)                         │  │  │
-│  │  │   - Find nodes with lastHeartbeat > 60s ago                     │  │  │
+│  │  │   - Find nodes with lastHeartbeat > 30s ago                     │  │  │
 │  │  │   - Mark as UNHEALTHY                                           │  │  │
 │  │  │   - Broadcast topology change via WebSocket                     │  │  │
 │  │  └─────────────────────────────────────────────────────────────────┘  │  │
@@ -74,7 +74,7 @@ This document describes the architecture for managing infrastructure topology st
 │  │ Connect:     │  │ Connect:     │                                         │
 │  │  PUT /connections/bulk         │                                         │
 │  │              │  │              │                                         │
-│  │ Every 30s:   │  │ Every 30s:   │                                         │
+│  │ Every 10s:   │  │ Every 10s:   │                                         │
 │  │  POST /heartbeat               │                                         │
 │  └──────────────┘  └──────────────┘                                         │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -89,7 +89,7 @@ This document describes the architecture for managing infrastructure topology st
 │   UNKNOWN   │ ───────────────────────►│   HEALTHY   │
 └─────────────┘                         └──────┬──────┘
                                                │
-                                               │ heartbeat every 30s
+                                               │ heartbeat every 10s
                                                │
                                                ▼
                                         ┌─────────────┐
@@ -97,7 +97,7 @@ This document describes the architecture for managing infrastructure topology st
                               │         └──────┬──────┘         │
                               │                │                │
                          heartbeat        no heartbeat      heartbeat
-                         received          for 60s          received
+                         received          for 30s          received
                               │                │                │
                               │                ▼                │
                               │         ┌─────────────┐         │
@@ -117,10 +117,10 @@ This document describes the architecture for managing infrastructure topology st
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| Heartbeat interval | 30 seconds | How often nodes send heartbeat |
-| Unhealthy threshold | 60 seconds | Mark unhealthy if no heartbeat |
+| Heartbeat interval | 10 seconds | How often nodes send heartbeat |
+| Unhealthy threshold | 30 seconds | Mark unhealthy if no heartbeat |
 | Removal threshold | 5 minutes | Remove from topology (configurable) |
-| Watchdog interval | 15 seconds | How often am-api checks for stale nodes |
+| Watchdog interval | 15 seconds | How often oscc-state checks for stale nodes |
 
 ---
 
@@ -155,8 +155,8 @@ Content-Type: application/json
   "id": "media-42",
   "status": "HEALTHY",
   "registeredAt": "2024-02-01T12:00:00Z",
-  "heartbeatIntervalSeconds": 30,
-  "heartbeatTimeoutSeconds": 60
+  "heartbeatIntervalSeconds": 10,
+  "heartbeatTimeoutSeconds": 30
 }
 ```
 
@@ -189,12 +189,12 @@ Content-Type: application/json
     "mosScore": 42
   },
   "sessionBreakdown": {
-    "inbound": 50,
-    "outbound": 25,
-    "ivr": 10,
-    "queue": 15,
-    "agent": 45,
-    "onHold": 5
+    "inboundSessions": 50,
+    "outboundSessions": 25,
+    "ivrSessions": 10,
+    "queueSessions": 15,
+    "agentSessions": 45,
+    "onHoldSessions": 5
   }
 }
 ```
@@ -320,9 +320,12 @@ Content-Type: application/json
 ```json
 {
   "sourceId": "sip-1",
-  "added": ["media-42", "media-43", "media-44", "media-45"],
-  "failed": [],
-  "totalConnections": 4
+  "addedCount": 2,
+  "existingCount": 2,
+  "failedCount": 0,
+  "addedTargets": ["media-44", "media-45"],
+  "existingTargets": ["media-42", "media-43"],
+  "failedTargets": []
 }
 ```
 
@@ -330,12 +333,12 @@ Content-Type: application/json
 ```json
 {
   "sourceId": "sip-1",
-  "added": ["media-42", "media-43"],
-  "failed": [
-    { "targetId": "media-99", "reason": "Node not found" },
-    { "targetId": "media-100", "reason": "Node is UNHEALTHY" }
-  ],
-  "totalConnections": 2
+  "addedCount": 2,
+  "existingCount": 0,
+  "failedCount": 2,
+  "addedTargets": ["media-42", "media-43"],
+  "existingTargets": [],
+  "failedTargets": ["media-99", "media-100"]
 }
 ```
 
@@ -350,14 +353,7 @@ Content-Type: application/json
 }
 ```
 
-**Response (200 OK):**
-```json
-{
-  "sourceId": "sip-1",
-  "removed": ["media-42", "media-43"],
-  "totalConnections": 2
-}
-```
+**Response (200 OK):** Same format as bulk add response.
 
 #### Replace All Connections (Set)
 
@@ -544,44 +540,84 @@ SET infra:watchdog:lock "pod-abc123" NX EX 20
 
 ### Phase 1: Dependencies and Configuration
 
-#### 1.1 Update `build.gradle.kts`
+#### 1.1 Update `pom.xml`
 
-```kotlin
-plugins {
-    java
-    id("org.springframework.boot") version "3.5.7"
-    id("io.spring.dependency-management") version "1.1.7"
-}
+```xml
+<dependencies>
+    <!-- Web & WebSocket -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-validation</artifactId>
+    </dependency>
 
-dependencies {
-    // Web & WebSocket
-    implementation("org.springframework.boot:spring-boot-starter-web")
-    implementation("org.springframework.boot:spring-boot-starter-websocket")
-    implementation("org.springframework.boot:spring-boot-starter-validation")
+    <!-- Database -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-data-redis</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.postgresql</groupId>
+        <artifactId>postgresql</artifactId>
+        <scope>runtime</scope>
+    </dependency>
 
-    // Database
-    implementation("org.springframework.boot:spring-boot-starter-data-jpa")
-    implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    runtimeOnly("org.postgresql:postgresql")
+    <!-- Migrations -->
+    <dependency>
+        <groupId>org.liquibase</groupId>
+        <artifactId>liquibase-core</artifactId>
+    </dependency>
 
-    // Migrations
-    implementation("org.liquibase:liquibase-core")
+    <!-- Kafka (optional, for external events) -->
+    <dependency>
+        <groupId>org.springframework.kafka</groupId>
+        <artifactId>spring-kafka</artifactId>
+    </dependency>
 
-    // Kafka (optional, for external events)
-    implementation("org.springframework.kafka:spring-kafka")
+    <!-- Utilities -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <optional>true</optional>
+    </dependency>
 
-    // Utilities
-    implementation("org.springframework.boot:spring-boot-starter-actuator")
-    compileOnly("org.projectlombok:lombok")
-    annotationProcessor("org.projectlombok:lombok")
-
-    // Testing
-    testImplementation("org.springframework.boot:spring-boot-starter-test")
-    testImplementation("org.springframework.kafka:spring-kafka-test")
-    testImplementation("org.testcontainers:postgresql")
-    testImplementation("org.testcontainers:kafka")
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
+    <!-- Testing -->
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.kafka</groupId>
+        <artifactId>spring-kafka-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>postgresql</artifactId>
+        <scope>test</scope>
+    </dependency>
+    <dependency>
+        <groupId>org.testcontainers</groupId>
+        <artifactId>kafka</artifactId>
+        <scope>test</scope>
+    </dependency>
+</dependencies>
 ```
 
 #### 1.2 Configuration Properties
@@ -611,12 +647,12 @@ spring.data.redis.timeout=5000ms
 
 # Kafka (optional)
 spring.kafka.bootstrap-servers=${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-spring.kafka.consumer.group-id=am-api-infrastructure
+spring.kafka.consumer.group-id=oscc-state-infrastructure
 spring.kafka.consumer.auto-offset-reset=earliest
 
 # Node Health Settings
-app.node.heartbeat-interval-seconds=30
-app.node.unhealthy-threshold-seconds=60
+app.node.heartbeat-interval-seconds=10
+app.node.unhealthy-threshold-seconds=30
 app.node.removal-threshold-seconds=300
 app.node.watchdog-interval-seconds=15
 
@@ -652,7 +688,7 @@ logging.level.org.springframework.web=DEBUG
 #### File Structure
 
 ```
-am-api/src/main/java/com/example/agentmonitor/
+oscc-state/src/main/java/com/example/osccstate/
 ├── AgentMonitorApplication.java
 ├── config/
 │   ├── WebSocketConfig.java (existing)
@@ -1333,7 +1369,7 @@ public class MockDataGeneratorService {
 
 | File | Changes |
 |------|---------|
-| `build.gradle.kts` | Add JPA, PostgreSQL, Liquibase |
+| `pom.xml` | Add JPA, PostgreSQL, Liquibase dependencies |
 | `application.properties` | Add DB, health config |
 | `service/InfrastructureService.java` | Read from DB + Redis |
 
@@ -1351,11 +1387,11 @@ public class MockDataGeneratorService {
 - [ ] SIP server can register via `POST /api/v1/nodes/register`
 - [ ] Media server can register via `POST /api/v1/nodes/register`
 - [ ] Heartbeat updates node health via `POST /api/v1/nodes/{id}/heartbeat`
-- [ ] Node marked UNHEALTHY after 60s without heartbeat
+- [ ] Node marked UNHEALTHY after 30s without heartbeat
 - [ ] SIP server can discover media via `GET /api/v1/nodes?type=MEDIA&status=HEALTHY`
 - [ ] SIP server can add single connection via `POST /api/v1/nodes/{sipId}/connections`
 - [ ] SIP server can bulk add connections via `PUT /api/v1/nodes/{sipId}/connections/bulk`
 - [ ] SIP server can remove connections via `DELETE /api/v1/nodes/{sipId}/connections/{targetId}`
 - [ ] Topology changes broadcast via WebSocket `/topic/topology/changes`
-- [ ] Multiple am-api pods see consistent data
+- [ ] Multiple oscc-state pods see consistent data
 - [ ] Mock data generator creates test topology in dev mode

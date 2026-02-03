@@ -71,14 +71,43 @@ Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 
 See [node-registration-api.md](../node-registration-api.md) for complete API documentation.
 
+## Edge/Connection Management
+
+SIP servers and SBCs should declare their downstream connections (edges) to build the topology graph:
+
+```java
+// After registration, declare connections to media servers
+client.start();
+
+// Bulk add connections to multiple media servers
+var response = client.addConnectionsBulk(List.of("media-01", "media-02", "media-03"));
+System.out.println("Added: " + response.addedCount() + ", Existing: " + response.existingCount());
+
+// Remove a connection when a media server goes bad
+client.removeConnection("media-02");
+
+// Re-add when the server recovers
+client.addConnection("media-02");
+```
+
+**Topology ownership**: Upstream nodes own the connection declarations:
+- **TRUNK** → declares connections to **SBC**
+- **SBC** → declares connections to **SIP**
+- **SIP** → declares connections to **MEDIA**
+- **MEDIA** → leaf nodes, no downstream connections
+
+See `SipServerExample.java` for a complete example with health monitoring.
+
 ## Integration Checklist
 
 - [ ] Choose a stable, unique `nodeId` (hostname or UUID)
 - [ ] Implement metrics collection (CPU, memory, latency, jitter)
 - [ ] Implement session counting with breakdown
 - [ ] Call register on startup
+- [ ] Declare downstream connections after registration (if applicable)
 - [ ] Send heartbeats every 10 seconds (or as specified)
 - [ ] Handle heartbeat failures with retry logic
+- [ ] Monitor downstream node health and update connections accordingly
 - [ ] Call deregister on graceful shutdown
 - [ ] Add shutdown hook for cleanup
 
@@ -95,17 +124,18 @@ All SDKs support these environment variables:
 | `REGION` | `us-east` | Geographic region |
 | `MAX_SESSIONS` | `100` | Maximum concurrent sessions |
 | `HEARTBEAT_INTERVAL` | `10` | Heartbeat interval in seconds |
+| `MEDIA_SERVERS` | (empty) | Comma-separated list of media server IDs to connect to (SIP/SBC only) |
 
 ## Testing Your Integration
 
 1. Start the OSCC State backend:
    ```bash
-   cd am-api && ./gradlew bootRun
+   cd oscc-state && ../mvnw spring-boot:run
    ```
 
 2. Start the frontend:
    ```bash
-   cd am-ui && npm run dev
+   cd oscc-admin-ui && npm run dev
    ```
 
 3. Run your client SDK
