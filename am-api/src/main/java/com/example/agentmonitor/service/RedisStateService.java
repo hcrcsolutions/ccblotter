@@ -94,7 +94,8 @@ public class RedisStateService {
         String key = RedisKeys.nodeSessions(nodeId);
         Object value = redisTemplate.opsForHash().get(key, RedisKeys.Sessions.ACTIVE);
         if (value != null) {
-            return Integer.parseInt(value.toString());
+            int parsed = parseInt(value);
+            return parsed;
         }
         return null;
     }
@@ -190,7 +191,6 @@ public class RedisStateService {
         return records.stream()
                 .map(record -> {
                     Map<Object, Object> values = record.getValue();
-                    String timestampStr = record.getId().getTimestamp() + "";
                     return TrendDataPoint.builder()
                             .timestamp(Instant.ofEpochMilli(record.getId().getTimestamp()))
                             .activeSessions(parseInt(values.get(RedisKeys.Trends.ACTIVE)))

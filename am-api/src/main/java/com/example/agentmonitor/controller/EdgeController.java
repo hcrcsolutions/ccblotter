@@ -8,6 +8,7 @@ import com.example.agentmonitor.repository.NodeRepository;
 import com.example.agentmonitor.service.RedisStateService;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -235,7 +236,7 @@ public class EdgeController {
     public record EdgeRequest(
             @NotBlank(message = "Source ID is required") String sourceId,
             @NotBlank(message = "Target ID is required") String targetId,
-            Integer bandwidthMbps
+            @Min(value = 0, message = "Bandwidth must be non-negative") Integer bandwidthMbps
     ) {}
 
     /**
