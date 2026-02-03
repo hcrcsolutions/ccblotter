@@ -69,7 +69,8 @@ Runtime.getRuntime().addShutdownHook(new Thread(client::close));
 
 ## API Documentation
 
-See [node-registration-api.md](../node-registration-api.md) for complete API documentation.
+- [node-registration-api.md](../node-registration-api.md) - Complete API documentation
+- [trunk-sbc-integration.md](../trunk-sbc-integration.md) - Trunk and SBC integration patterns
 
 ## Edge/Connection Management
 
