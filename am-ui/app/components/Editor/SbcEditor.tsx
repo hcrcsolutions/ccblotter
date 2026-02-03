@@ -27,8 +27,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { NodeSummary, NodeRegistrationRequest, Datacenter } from '../../types';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { getBackendUrl } from '../../lib/settings';
 
 export default function SbcEditor() {
   const [sbcs, setSbcs] = React.useState<NodeSummary[]>([]);
@@ -51,7 +50,7 @@ export default function SbcEditor() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/nodes?type=SBC&includeUnhealthy=true`);
+      const response = await fetch(`${getBackendUrl()}/api/v1/nodes?type=SBC&includeUnhealthy=true`);
       if (!response.ok) {
         throw new Error(`Failed to fetch SBCs: ${response.status}`);
       }
@@ -66,7 +65,7 @@ export default function SbcEditor() {
 
   const fetchDatacenters = React.useCallback(async () => {
     try {
-      const response = await fetch(`${API_BASE}/api/v1/datacenters`);
+      const response = await fetch(`${getBackendUrl()}/api/v1/datacenters`);
       if (response.ok) {
         const data = await response.json();
         setDatacenters(data);
@@ -115,7 +114,7 @@ export default function SbcEditor() {
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/nodes/register`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/nodes/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -142,7 +141,7 @@ export default function SbcEditor() {
 
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/nodes/${id}`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/nodes/${id}`, {
         method: 'DELETE',
       });
 

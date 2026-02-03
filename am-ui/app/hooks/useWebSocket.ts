@@ -24,49 +24,10 @@ import {
   isValidInfrastructureTopology,
   safeParseJson,
 } from '../lib/typeValidation';
-import { isServer, getLocalStorageItem, removeLocalStorageItem } from '../lib/ssr';
+import { getBackendUrl, getApiBaseUrl } from '../lib/settings';
 
-const STORAGE_KEY = 'oscc-admin-settings';
-const DEFAULT_BACKEND_URL = 'https://localhost:8443';
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
-
-function getBackendUrl(): string {
-  if (isServer()) return DEFAULT_BACKEND_URL;
-  try {
-    const stored = getLocalStorageItem(STORAGE_KEY);
-    if (stored) {
-      const settings = JSON.parse(stored);
-      // Validate settings structure
-      if (typeof settings !== 'object' || settings === null) {
-        throw new Error('Invalid settings format: not an object');
-      }
-      // Handle new format with multiple configs
-      if (Array.isArray(settings.configs) && typeof settings.activeConfigName === 'string') {
-        const activeConfig = settings.configs.find(
-          (c: unknown): c is { name: string; url: string } =>
-            typeof c === 'object' &&
-            c !== null &&
-            typeof (c as { name?: unknown }).name === 'string' &&
-            typeof (c as { url?: unknown }).url === 'string' &&
-            (c as { name: string }).name === settings.activeConfigName
-        );
-        if (activeConfig && activeConfig.url) {
-          return activeConfig.url;
-        }
-      }
-      // Handle old format with just backendUrl
-      if (typeof settings.backendUrl === 'string' && settings.backendUrl) {
-        return settings.backendUrl;
-      }
-    }
-  } catch (e) {
-    console.error('Corrupted settings in localStorage, using default:', e);
-    // Clear corrupted data to prevent repeated errors
-    removeLocalStorageItem(STORAGE_KEY);
-  }
-  return DEFAULT_BACKEND_URL;
-}
 
 const initialSummary: AgentSummary = {
   online: 0,
@@ -256,7 +217,7 @@ export function useWebSocket(): DashboardState {
   const fetchInitialData = useCallback(async () => {
     if (!isMountedRef.current) return;
 
-    const apiUrl = `${getBackendUrl()}/api`;
+    const apiUrl = getApiBaseUrl();
     console.log('Fetching initial data via REST API...', apiUrl);
 
     const results = await Promise.allSettled([

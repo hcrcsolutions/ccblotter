@@ -25,8 +25,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { Datacenter, DatacenterRequest } from '../../types';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { getBackendUrl } from '../../lib/settings';
 
 export default function DatacenterEditor() {
   const [datacenters, setDatacenters] = React.useState<Datacenter[]>([]);
@@ -45,7 +44,7 @@ export default function DatacenterEditor() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/datacenters`);
+      const response = await fetch(`${getBackendUrl()}/api/v1/datacenters`);
       if (!response.ok) {
         throw new Error(`Failed to fetch datacenters: ${response.status}`);
       }
@@ -89,8 +88,8 @@ export default function DatacenterEditor() {
     try {
       const method = editingDc ? 'PUT' : 'POST';
       const url = editingDc
-        ? `${API_BASE}/api/v1/datacenters/${editingDc.id}`
-        : `${API_BASE}/api/v1/datacenters`;
+        ? `${getBackendUrl()}/api/v1/datacenters/${editingDc.id}`
+        : `${getBackendUrl()}/api/v1/datacenters`;
 
       const response = await fetch(url, {
         method,
@@ -119,7 +118,7 @@ export default function DatacenterEditor() {
 
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/datacenters/${id}`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/datacenters/${id}`, {
         method: 'DELETE',
       });
 

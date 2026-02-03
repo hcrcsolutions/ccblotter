@@ -30,8 +30,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import type { NodeSummary } from '../../types';
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+import { getBackendUrl } from '../../lib/settings';
 
 interface EdgeResponse {
   id: string;
@@ -80,7 +79,7 @@ export default function EdgeEditor() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/edges`);
+      const response = await fetch(`${getBackendUrl()}/api/v1/edges`);
       if (!response.ok) {
         throw new Error(`Failed to fetch edges: ${response.status}`);
       }
@@ -100,7 +99,7 @@ export default function EdgeEditor() {
     setNodesLoading(true);
     setNodesError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/nodes?includeUnhealthy=true`);
+      const response = await fetch(`${getBackendUrl()}/api/v1/nodes?includeUnhealthy=true`);
       if (!response.ok) {
         throw new Error(`Failed to fetch nodes: ${response.status}`);
       }
@@ -138,7 +137,7 @@ export default function EdgeEditor() {
     setSaving(true);
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/edges`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/edges`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
@@ -165,7 +164,7 @@ export default function EdgeEditor() {
 
     setError(null);
     try {
-      const response = await fetch(`${API_BASE}/api/v1/edges/${encodeURIComponent(edgeId)}`, {
+      const response = await fetch(`${getBackendUrl()}/api/v1/edges/${encodeURIComponent(edgeId)}`, {
         method: 'DELETE',
       });
 
