@@ -1,7 +1,6 @@
 package com.fmr.ec3.oscc.receiver.websocket;
 
 import com.fmr.ec3.oscc.receiver.config.ReceiverProperties;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,8 +37,9 @@ class WebSocketBroadcasterTest {
 
         ReceiverProperties props = new ReceiverProperties();
         props.setWebsocketThrottleMs(500);
+        // Synchronous executor for deterministic tests
         broadcaster = new WebSocketBroadcaster(messagingTemplate, redisTemplate,
-            new ObjectMapper(), props);
+            props, Runnable::run);
     }
 
     @Test
