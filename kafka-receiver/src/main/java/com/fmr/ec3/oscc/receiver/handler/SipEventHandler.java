@@ -256,12 +256,13 @@ public class SipEventHandler {
         String currentCallId = snapshot.get(1);
 
         if (currentState != null && p.callId().equals(currentCallId)) {
-            // Agent's current call matches — transition to ONLINE
-            agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
+            // Write last-call metadata first, while agent is still ON_CALL.
+            // This avoids a race window where the agent is ONLINE with missing metadata.
             Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
             Instant endTime = Instant.ofEpochMilli(p.callEndTimeMs());
             agentWriter.updateLastCallInfo(p.agentId(), p.originator(),
                 startTime, endTime, p.durationSeconds());
+            agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
         } else if (currentState != null) {
             // Agent exists but is on a different call — stale CALL_ENDED, skip agent update
             log.warn("CALL_ENDED for call {} but agent {} has currentCallId={} - skipping agent state change",

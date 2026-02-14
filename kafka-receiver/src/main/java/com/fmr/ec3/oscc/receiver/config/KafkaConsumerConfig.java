@@ -64,12 +64,14 @@ public class KafkaConsumerConfig {
             new FixedBackOff(1000L, 3L)
         );
 
-        // Don't retry data/schema errors — they will never succeed
+        // Don't retry data/schema errors — they will never succeed.
+        // SerializationException: malformed JSON or missing eventType (from deserializer)
+        // ClassCastException: payload type mismatch (e.g., wrong event routed to handler)
+        // Note: IllegalArgumentException and NullPointerException are NOT listed here
+        // because they could indicate transient issues worth retrying.
         errorHandler.addNotRetryableExceptions(
             SerializationException.class,
-            ClassCastException.class,
-            IllegalArgumentException.class,
-            NullPointerException.class
+            ClassCastException.class
         );
 
         return errorHandler;

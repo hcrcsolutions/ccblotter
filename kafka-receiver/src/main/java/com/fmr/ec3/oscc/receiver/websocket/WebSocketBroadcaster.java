@@ -2,7 +2,6 @@ package com.fmr.ec3.oscc.receiver.websocket;
 
 import com.fmr.ec3.oscc.receiver.config.ReceiverProperties;
 import com.fmr.ec3.oscc.receiver.state.RedisKeySchema;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -37,7 +36,6 @@ public class WebSocketBroadcaster {
 
     public WebSocketBroadcaster(SimpMessagingTemplate messagingTemplate,
                                  StringRedisTemplate redisTemplate,
-                                 ObjectMapper objectMapper,
                                  ReceiverProperties props) {
         this(messagingTemplate, redisTemplate, props,
             Executors.newSingleThreadExecutor(r -> {
