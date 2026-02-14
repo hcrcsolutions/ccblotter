@@ -44,7 +44,7 @@ public class CallStateWriter {
     }
 
     public void saveCall(String callId, String originator, String agentId,
-                          String agentName, Instant startTime, String state) {
+                          String agentName, Instant startTime, String state, String skill) {
         Map<String, String> callMap = new HashMap<>();
         callMap.put("id", callId);
         callMap.put("originator", originator);
@@ -52,6 +52,9 @@ public class CallStateWriter {
         callMap.put("agentName", agentName);
         callMap.put("startTime", startTime.toString());
         callMap.put("state", state);
+        if (skill != null) {
+            callMap.put("skill", skill);
+        }
 
         String key = RedisKeySchema.callKey(callId);
         redisTemplate.execute(new SessionCallback<>() {

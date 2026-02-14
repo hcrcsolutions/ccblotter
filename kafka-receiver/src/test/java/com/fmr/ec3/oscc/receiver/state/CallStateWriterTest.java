@@ -38,7 +38,7 @@ class CallStateWriterTest {
         when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
 
         Instant start = Instant.parse("2024-01-01T10:00:00Z");
-        writer.saveCall("call-1", "(212) 555-0100", "AGT-0001", "John Smith", start, "TALKING");
+        writer.saveCall("call-1", "(212) 555-0100", "AGT-0001", "John Smith", start, "TALKING", "Sales");
 
         verify(redisTemplate).execute(any(SessionCallback.class));
     }

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Handles SIP call-control events from SIP servers.
@@ -74,6 +75,7 @@ import java.util.List;
 public class SipEventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SipEventHandler.class);
+    private static final Set<String> VALID_HOLD_STATES = Set.of("ON_HOLD", "TALKING");
 
     private final AgentStateWriter agentWriter;
     private final CallStateWriter callWriter;
@@ -235,7 +237,7 @@ public class SipEventHandler {
         // 5. Create Call record with event's callId
         Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
         callWriter.saveCall(p.callId(), p.originator(), p.agentId(),
-            p.agentName(), startTime, "TALKING");
+            p.agentName(), startTime, "TALKING", p.skill());
 
         // 6. Update agent to ON_CALL
         agentWriter.updateAgentState(p.agentId(), "ON_CALL", p.callId());
@@ -293,6 +295,11 @@ public class SipEventHandler {
 
     private void handleCallHoldChanged(EventEnvelope<?> envelope) {
         CallHoldChangedPayload p = (CallHoldChangedPayload) envelope.payload();
+
+        if (!VALID_HOLD_STATES.contains(p.newState())) {
+            log.warn("CALL_HOLD_CHANGED with invalid state '{}' for call {}", p.newState(), p.callId());
+            return;
+        }
 
         // Lua: EXISTS + HSET in single round-trip
         if (!callWriter.updateCallStateIfExists(p.callId(), p.newState())) {

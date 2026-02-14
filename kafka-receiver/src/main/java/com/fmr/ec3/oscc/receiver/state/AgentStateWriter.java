@@ -41,6 +41,7 @@ public class AgentStateWriter {
             "else " +
             "  redis.call('HDEL', KEYS[1], 'currentCallId') " +
             "end " +
+            "redis.call('HDEL', KEYS[1], 'breakType', 'logoutReason') " +
             "redis.call('SADD', KEYS[2], ARGV[2]) " +
             "redis.call('SADD', KEYS[3], ARGV[2]) " +
             "return 1"
@@ -58,6 +59,8 @@ public class AgentStateWriter {
             "else " +
             "  redis.call('HDEL', KEYS[1], 'currentCallId') " +
             "end " +
+            "if oldState == 'AWAY' then redis.call('HDEL', KEYS[1], 'breakType') end " +
+            "if oldState == 'UNAVAILABLE' then redis.call('HDEL', KEYS[1], 'logoutReason') end " +
             "redis.call('SADD', KEYS[2], ARGV[5]) " +
             "return 1"
         );
@@ -131,20 +134,27 @@ public class AgentStateWriter {
             return;
         }
         Map<String, String> fields = new HashMap<>();
-        fields.put("lastCallOriginator", originator);
+        fields.put("lastCallOriginator", originator != null ? originator : "");
         fields.put("lastCallStartTime", startTime.toString());
         fields.put("lastCallEndTime", endTime.toString());
         fields.put("lastCallDurationSeconds", String.valueOf(durationSeconds));
-        fields.put("lastCallReason", reason);
+        fields.put("lastCallReason", reason != null ? reason : "");
         redisTemplate.opsForHash().putAll(key, fields);
     }
 
     /**
-     * Sets a single metadata field on the agent hash.
+     * Sets a single metadata field on the agent hash if the agent still exists.
      * Used for ancillary data like breakType and logoutReason.
+     * @return true if the field was set, false if the agent no longer exists
      */
-    public void setAgentField(String agentId, String field, String value) {
-        redisTemplate.opsForHash().put(RedisKeySchema.agentKey(agentId), field, value);
+    public boolean setAgentField(String agentId, String field, String value) {
+        String key = RedisKeySchema.agentKey(agentId);
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            log.warn("Agent {} no longer exists - skipping field update {}={}", agentId, field, value);
+            return false;
+        }
+        redisTemplate.opsForHash().put(key, field, value);
+        return true;
     }
 
     public void removeAgent(String agentId) {

@@ -216,7 +216,7 @@ class SipEventHandlerTest {
 
             verify(queueWriter).removeFromQueue("queued-1");
             verify(callWriter).saveCall("call-1", "(212) 555-0100", "AGT-0001",
-                "John Smith", Instant.ofEpochMilli(now), "TALKING");
+                "John Smith", Instant.ofEpochMilli(now), "TALKING", "Sales");
             verify(agentWriter).updateAgentState("AGT-0001", "ON_CALL", "call-1");
         }
 
@@ -233,7 +233,7 @@ class SipEventHandlerTest {
 
             verify(agentWriter).saveAgent("AGT-9999", "New Agent", "ONLINE", null);
             verify(callWriter).saveCall(eq("call-1"), anyString(), eq("AGT-9999"),
-                anyString(), any(), eq("TALKING"));
+                anyString(), any(), eq("TALKING"), eq("Sales"));
         }
 
         @Test
@@ -249,7 +249,7 @@ class SipEventHandlerTest {
 
             verify(callWriter).removeCall("old-call");
             verify(callWriter).saveCall(eq("new-call"), anyString(), eq("AGT-0001"),
-                anyString(), any(), eq("TALKING"));
+                anyString(), any(), eq("TALKING"), eq("Sales"));
         }
 
         @Test
@@ -266,7 +266,7 @@ class SipEventHandlerTest {
             // removeFromQueue is idempotent — always called, no exists check
             verify(queueWriter).removeFromQueue("missing-queue");
             verify(callWriter).saveCall(eq("call-1"), anyString(), eq("AGT-0001"),
-                anyString(), any(), eq("TALKING"));
+                anyString(), any(), eq("TALKING"), eq("Sales"));
         }
 
         @Test
@@ -402,6 +402,15 @@ class SipEventHandlerTest {
 
             verify(callWriter).updateCallStateIfExists("unknown", "ON_HOLD");
             verify(broadcaster).broadcastCalls();
+        }
+
+        @Test
+        void rejectsInvalidHoldState() {
+            var payload = new CallHoldChangedPayload("call-1", "AGT-0001", "INVALID_STATE", "sip-1");
+            handler.handle(envelope(EventType.CALL_HOLD_CHANGED, payload));
+
+            verify(callWriter, never()).updateCallStateIfExists(anyString(), anyString());
+            verify(broadcaster, never()).broadcastCalls();
         }
     }
 }

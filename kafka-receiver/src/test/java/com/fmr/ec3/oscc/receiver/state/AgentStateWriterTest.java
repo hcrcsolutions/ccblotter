@@ -143,6 +143,18 @@ class AgentStateWriterTest {
     }
 
     @Test
+    void updateLastCallInfoHandlesNullOriginatorAndReason() {
+        when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(true);
+        Instant start = Instant.parse("2024-01-01T10:00:00Z");
+        Instant end = Instant.parse("2024-01-01T10:05:00Z");
+        writer.updateLastCallInfo("AGT-0001", null, start, end, 300, null);
+
+        verify(hashOps).putAll(eq("agent:AGT-0001"), argThat(map ->
+            "".equals(map.get("lastCallOriginator")) && "".equals(map.get("lastCallReason"))
+        ));
+    }
+
+    @Test
     void updateLastCallInfoSkipsDeletedAgent() {
         when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(false);
         Instant start = Instant.parse("2024-01-01T10:00:00Z");
@@ -154,9 +166,20 @@ class AgentStateWriterTest {
 
     @Test
     void setAgentFieldWritesToHash() {
-        writer.setAgentField("AGT-0001", "breakType", "Lunch");
+        when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(true);
+
+        assertTrue(writer.setAgentField("AGT-0001", "breakType", "Lunch"));
 
         verify(hashOps).put("agent:AGT-0001", "breakType", "Lunch");
+    }
+
+    @Test
+    void setAgentFieldSkipsDeletedAgent() {
+        when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(false);
+
+        assertFalse(writer.setAgentField("AGT-0001", "breakType", "Lunch"));
+
+        verify(hashOps, never()).put(anyString(), anyString(), anyString());
     }
 
     @SuppressWarnings("unchecked")
