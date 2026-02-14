@@ -143,6 +143,7 @@ public class SipEventHandler {
             log.warn("AGENT_LOGGED_OUT for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "UNAVAILABLE", null);
         }
+        agentWriter.setAgentField(p.agentId(), "logoutReason", p.reason());
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
@@ -168,6 +169,7 @@ public class SipEventHandler {
             log.warn("AGENT_BREAK_STARTED for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "AWAY", null);
         }
+        agentWriter.setAgentField(p.agentId(), "breakType", p.breakType());
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
@@ -261,7 +263,7 @@ public class SipEventHandler {
             Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
             Instant endTime = Instant.ofEpochMilli(p.callEndTimeMs());
             agentWriter.updateLastCallInfo(p.agentId(), p.originator(),
-                startTime, endTime, p.durationSeconds());
+                startTime, endTime, p.durationSeconds(), p.reason());
             agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
         } else if (currentState != null) {
             // Agent exists but is on a different call — stale CALL_ENDED, skip agent update

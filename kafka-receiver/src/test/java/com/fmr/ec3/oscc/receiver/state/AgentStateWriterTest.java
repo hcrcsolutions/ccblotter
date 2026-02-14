@@ -137,7 +137,7 @@ class AgentStateWriterTest {
         when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(true);
         Instant start = Instant.parse("2024-01-01T10:00:00Z");
         Instant end = Instant.parse("2024-01-01T10:05:00Z");
-        writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300);
+        writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300, "normal_clearing");
 
         verify(hashOps).putAll(eq("agent:AGT-0001"), anyMap());
     }
@@ -147,9 +147,16 @@ class AgentStateWriterTest {
         when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(false);
         Instant start = Instant.parse("2024-01-01T10:00:00Z");
         Instant end = Instant.parse("2024-01-01T10:05:00Z");
-        writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300);
+        writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300, "normal_clearing");
 
         verify(hashOps, never()).putAll(anyString(), anyMap());
+    }
+
+    @Test
+    void setAgentFieldWritesToHash() {
+        writer.setAgentField("AGT-0001", "breakType", "Lunch");
+
+        verify(hashOps).put("agent:AGT-0001", "breakType", "Lunch");
     }
 
     @SuppressWarnings("unchecked")

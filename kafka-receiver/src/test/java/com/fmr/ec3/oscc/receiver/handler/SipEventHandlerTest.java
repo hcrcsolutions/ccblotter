@@ -88,6 +88,7 @@ class SipEventHandlerTest {
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "UNAVAILABLE", null);
+            verify(agentWriter).setAgentField("AGT-0001", "logoutReason", "end_of_shift");
             verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
             verify(callWriter, never()).removeCall(anyString());
         }
@@ -125,6 +126,7 @@ class SipEventHandlerTest {
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "AWAY", null);
+            verify(agentWriter).setAgentField("AGT-0001", "breakType", "Lunch");
             verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
             verify(callWriter, never()).removeCall(anyString());
         }
@@ -312,9 +314,9 @@ class SipEventHandlerTest {
                 "call-1", "AGT-0001", "(212) 555-0100", start, end, 300, "normal_clearing", "sip-1");
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
-            verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
             verify(agentWriter).updateLastCallInfo("AGT-0001", "(212) 555-0100",
-                Instant.ofEpochMilli(start), Instant.ofEpochMilli(end), 300);
+                Instant.ofEpochMilli(start), Instant.ofEpochMilli(end), 300, "normal_clearing");
+            verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
             verify(callWriter).removeCall("call-1");
         }
 
@@ -343,7 +345,7 @@ class SipEventHandlerTest {
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
             verify(agentWriter, never()).updateAgentState(anyString(), anyString(), any());
-            verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong());
+            verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong(), anyString());
             verify(callWriter).removeCall("call-1");
         }
 
@@ -360,7 +362,7 @@ class SipEventHandlerTest {
 
             // Agent state must NOT be changed — they are still on call-B
             verify(agentWriter, never()).updateAgentState(anyString(), anyString(), any());
-            verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong());
+            verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong(), anyString());
             // The stale call record is still removed
             verify(callWriter).removeCall("call-A");
         }

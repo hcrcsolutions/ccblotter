@@ -123,7 +123,8 @@ public class AgentStateWriter {
     }
 
     public void updateLastCallInfo(String agentId, String originator,
-                                    Instant startTime, Instant endTime, long durationSeconds) {
+                                    Instant startTime, Instant endTime,
+                                    long durationSeconds, String reason) {
         String key = RedisKeySchema.agentKey(agentId);
         if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
             log.warn("Agent {} no longer exists - skipping last-call metadata", agentId);
@@ -134,7 +135,16 @@ public class AgentStateWriter {
         fields.put("lastCallStartTime", startTime.toString());
         fields.put("lastCallEndTime", endTime.toString());
         fields.put("lastCallDurationSeconds", String.valueOf(durationSeconds));
+        fields.put("lastCallReason", reason);
         redisTemplate.opsForHash().putAll(key, fields);
+    }
+
+    /**
+     * Sets a single metadata field on the agent hash.
+     * Used for ancillary data like breakType and logoutReason.
+     */
+    public void setAgentField(String agentId, String field, String value) {
+        redisTemplate.opsForHash().put(RedisKeySchema.agentKey(agentId), field, value);
     }
 
     public void removeAgent(String agentId) {
