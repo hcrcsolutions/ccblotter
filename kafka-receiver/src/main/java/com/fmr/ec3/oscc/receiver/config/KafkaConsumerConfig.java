@@ -28,18 +28,6 @@ public class KafkaConsumerConfig {
     private String bootstrapServers;
 
     @Bean
-    public ConsumerFactory<String, EventEnvelope<?>> osccConsumerFactory() {
-        return new DefaultKafkaConsumerFactory<>(Map.of(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG, "kafka-receiver",
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, EventEnvelopeDeserializer.class,
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false
-        ));
-    }
-
-    @Bean
     public ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>>
             osccKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>> factory =
@@ -50,14 +38,24 @@ public class KafkaConsumerConfig {
         return factory;
     }
 
+    private ConsumerFactory<String, EventEnvelope<?>> osccConsumerFactory() {
+        return new DefaultKafkaConsumerFactory<>(Map.of(
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+            ConsumerConfig.GROUP_ID_CONFIG, "kafka-receiver",
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class,
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, EventEnvelopeDeserializer.class,
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false
+        ));
+    }
+
     /**
      * Retries transient failures (e.g. Redis down) 3 times with 1s backoff.
      * Permanent failures (bad data, schema mismatch) skip retries immediately.
      * After exhausting retries, the record is logged and skipped so the
      * partition is never permanently blocked by a poison-pill message.
      */
-    @Bean
-    public DefaultErrorHandler osccKafkaErrorHandler() {
+    private DefaultErrorHandler osccKafkaErrorHandler() {
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
             (record, ex) -> log.error(
                 "Skipping record after retries exhausted: topic={} partition={} offset={} key={}",
@@ -66,10 +64,6 @@ public class KafkaConsumerConfig {
         );
 
         // Don't retry data/schema errors — they will never succeed.
-        // SerializationException: malformed JSON or missing eventType (from deserializer)
-        // ClassCastException: payload type mismatch (e.g., wrong event routed to handler)
-        // Note: IllegalArgumentException and NullPointerException are NOT listed here
-        // because they could indicate transient issues worth retrying.
         errorHandler.addNotRetryableExceptions(
             SerializationException.class,
             ClassCastException.class
