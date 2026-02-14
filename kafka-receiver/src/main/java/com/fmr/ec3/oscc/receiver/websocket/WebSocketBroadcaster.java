@@ -130,8 +130,56 @@ public class WebSocketBroadcaster {
     }
 
     public void broadcastInfrastructure() {
-        if (!shouldBroadcast("/topic/infrastructure")) return;
-        log.debug("Infrastructure state updated in Redis");
+        submitBroadcast("/topic/infrastructure", () -> {
+            Set<String> nodeIds = redisTemplate.opsForSet().members(RedisKeySchema.INFRA_NODES_ALL);
+            if (nodeIds == null || nodeIds.isEmpty()) {
+                messagingTemplate.convertAndSend("/topic/infrastructure", Collections.emptyList());
+                return;
+            }
+            List<String> idList = new ArrayList<>(nodeIds);
+
+            // Pipeline: fetch info, metrics, and sessions for each node (3 HGETALL per node, 1 RT total)
+            List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+                @Override
+                public Object execute(RedisOperations operations) throws DataAccessException {
+                    for (String id : idList) {
+                        operations.opsForHash().entries(RedisKeySchema.nodeInfo(id));
+                        operations.opsForHash().entries(RedisKeySchema.nodeMetrics(id));
+                        operations.opsForHash().entries(RedisKeySchema.nodeSessions(id));
+                    }
+                    return null;
+                }
+            });
+
+            List<Map<String, Object>> nodes = new ArrayList<>(idList.size());
+            for (int i = 0; i < idList.size(); i++) {
+                @SuppressWarnings("unchecked")
+                Map<Object, Object> info = (Map<Object, Object>) results.get(i * 3);
+                if (info == null || info.isEmpty()) continue;
+
+                Map<String, Object> node = new HashMap<>();
+                info.forEach((k, v) -> node.put(k.toString(), v));
+
+                @SuppressWarnings("unchecked")
+                Map<Object, Object> metrics = (Map<Object, Object>) results.get(i * 3 + 1);
+                if (metrics != null && !metrics.isEmpty()) {
+                    Map<String, Object> metricsMap = new HashMap<>();
+                    metrics.forEach((k, v) -> metricsMap.put(k.toString(), v));
+                    node.put("metrics", metricsMap);
+                }
+
+                @SuppressWarnings("unchecked")
+                Map<Object, Object> sessions = (Map<Object, Object>) results.get(i * 3 + 2);
+                if (sessions != null && !sessions.isEmpty()) {
+                    Map<String, Object> sessionsMap = new HashMap<>();
+                    sessions.forEach((k, v) -> sessionsMap.put(k.toString(), v));
+                    node.put("sessions", sessionsMap);
+                }
+
+                nodes.add(node);
+            }
+            messagingTemplate.convertAndSend("/topic/infrastructure", nodes);
+        });
     }
 
     /**

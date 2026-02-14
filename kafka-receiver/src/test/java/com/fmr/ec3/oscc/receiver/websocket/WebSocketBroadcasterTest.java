@@ -114,6 +114,39 @@ class WebSocketBroadcasterTest {
     }
 
     @Test
+    void broadcastInfrastructureFetchesInfoMetricsSessions() {
+        when(setOps.members("infra:nodes:all")).thenReturn(Set.of("sip-1"));
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(
+                Map.of("nodeId", "sip-1", "nodeType", "SIP"),  // info
+                Map.of("cpu", "45.0", "memory", "60.0"),        // metrics
+                Map.of("active", "120", "inbound", "80")        // sessions
+            ));
+
+        broadcaster.broadcastInfrastructure();
+
+        @SuppressWarnings("unchecked")
+        var captor = org.mockito.ArgumentCaptor.forClass(java.util.List.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/infrastructure"), captor.capture());
+
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> nodes = captor.getValue();
+        assertEquals(1, nodes.size());
+        assertEquals("sip-1", nodes.get(0).get("nodeId"));
+        assertNotNull(nodes.get(0).get("metrics"));
+        assertNotNull(nodes.get(0).get("sessions"));
+    }
+
+    @Test
+    void broadcastInfrastructureSendsEmptyListWhenNoNodes() {
+        when(setOps.members("infra:nodes:all")).thenReturn(Set.of());
+
+        broadcaster.broadcastInfrastructure();
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/infrastructure"), anyList());
+    }
+
+    @Test
     void broadcastAgentsHandlesNullMembers() {
         when(setOps.members("agents:all")).thenReturn(null);
 
