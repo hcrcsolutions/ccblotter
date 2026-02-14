@@ -18,11 +18,31 @@ public class SimulatedCall {
         this.startTimeMs = startTimeMs;
     }
 
-    public String getCallId() { return callId; }
-    public String getAgentId() { return agentId; }
-    public String getAgentName() { return agentName; }
-    public String getOriginator() { return originator; }
-    public long getStartTimeMs() { return startTimeMs; }
-    public boolean isOnHold() { return onHold; }
-    public void setOnHold(boolean onHold) { this.onHold = onHold; }
+    public String getCallId() {
+        return callId;
+    }
+
+    public String getAgentId() {
+        return agentId;
+    }
+
+    public String getAgentName() {
+        return agentName;
+    }
+
+    public String getOriginator() {
+        return originator;
+    }
+
+    public long getStartTimeMs() {
+        return startTimeMs;
+    }
+
+    public boolean isOnHold() {
+        return onHold;
+    }
+
+    public void setOnHold(boolean onHold) {
+        this.onHold = onHold;
+    }
 }

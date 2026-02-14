@@ -21,17 +21,36 @@ public class SimulatedAgent {
         this.stateChangedAtMs = System.currentTimeMillis();
     }
 
-    public String getId() { return id; }
-    public String getName() { return name; }
-    public List<String> getSkills() { return skills; }
-    public State getState() { return state; }
+    public String getId() {
+        return id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public List<String> getSkills() {
+        return skills;
+    }
+
+    public State getState() {
+        return state;
+    }
 
     public void setState(State state) {
         this.state = state;
         this.stateChangedAtMs = System.currentTimeMillis();
     }
 
-    public String getCurrentCallId() { return currentCallId; }
-    public void setCurrentCallId(String currentCallId) { this.currentCallId = currentCallId; }
-    public long getStateChangedAtMs() { return stateChangedAtMs; }
+    public String getCurrentCallId() {
+        return currentCallId;
+    }
+
+    public void setCurrentCallId(String currentCallId) {
+        this.currentCallId = currentCallId;
+    }
+
+    public long getStateChangedAtMs() {
+        return stateChangedAtMs;
+    }
 }

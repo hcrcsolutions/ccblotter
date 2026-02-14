@@ -113,7 +113,9 @@ public class SipServerSimulator {
 
     @Scheduled(fixedDelayString = "${simulation.tick-interval-ms:2000}")
     public void tick() {
-        if (!running.get()) return;
+        if (!running.get()) {
+            return;
+        }
 
         try {
             long totalAgents = agents.size();
@@ -131,12 +133,29 @@ public class SipServerSimulator {
         }
     }
 
-    public void start() { running.set(true); }
-    public void stop() { running.set(false); }
-    public boolean isRunning() { return running.get(); }
-    public int getAgentCount() { return agents.size(); }
-    public int getActiveCallCount() { return activeCalls.size(); }
-    public int getQueuedCallCount() { return queuedCalls.size(); }
+    public void start() {
+        running.set(true);
+    }
+
+    public void stop() {
+        running.set(false);
+    }
+
+    public boolean isRunning() {
+        return running.get();
+    }
+
+    public int getAgentCount() {
+        return agents.size();
+    }
+
+    public int getActiveCallCount() {
+        return activeCalls.size();
+    }
+
+    public int getQueuedCallCount() {
+        return queuedCalls.size();
+    }
 
     private void generateAgents() {
         for (int i = 1; i <= props.getAgentCount(); i++) {
@@ -165,7 +184,9 @@ public class SipServerSimulator {
     }
 
     private void simulateIncomingCalls() {
-        if (queuedCalls.size() >= MAX_QUEUE_SIZE) return;
+        if (queuedCalls.size() >= MAX_QUEUE_SIZE) {
+            return;
+        }
 
         for (int i = 0; i < 3; i++) {
             if (random.nextInt(100) < NEW_QUEUE_CALL_CHANCE_PERCENT) {
@@ -187,12 +208,16 @@ public class SipServerSimulator {
     }
 
     private void simulateCallRouting(double currentOnCallRatio) {
-        if (queuedCalls.isEmpty()) return;
+        if (queuedCalls.isEmpty()) {
+            return;
+        }
 
         List<SimulatedAgent> onlineAgents = agents.values().stream()
             .filter(a -> a.getState() == State.ONLINE)
             .toList();
-        if (onlineAgents.isEmpty()) return;
+        if (onlineAgents.isEmpty()) {
+            return;
+        }
 
         int effectiveChance = ANSWER_QUEUE_CHANCE_PERCENT;
         if (currentOnCallRatio < MIN_ON_CALL_RATIO) {
@@ -207,7 +232,9 @@ public class SipServerSimulator {
                 SimulatedQueuedCall queuedCall = queued.get(i);
                 SimulatedAgent agent = onlineAgents.get(random.nextInt(onlineAgents.size()));
 
-                if (agent.getState() != State.ONLINE) continue;
+                if (agent.getState() != State.ONLINE) {
+                    continue;
+                }
 
                 String callId = UUID.randomUUID().toString();
                 long now = System.currentTimeMillis();
@@ -245,9 +272,15 @@ public class SipServerSimulator {
             }
 
             int endChance = END_CALL_CHANCE_PERCENT;
-            if (durationSeconds > 300) endChance += 5;
-            if (durationSeconds > 600) endChance += 10;
-            if (durationSeconds > 900) endChance += 15;
+            if (durationSeconds > 300) {
+                endChance += 5;
+            }
+            if (durationSeconds > 600) {
+                endChance += 10;
+            }
+            if (durationSeconds > 900) {
+                endChance += 15;
+            }
 
             if (random.nextInt(100) < endChance) {
                 endCall(call, now, durationSeconds);
@@ -291,7 +324,9 @@ public class SipServerSimulator {
     private void simulateBreaks(double currentOnCallRatio) {
         for (SimulatedAgent agent : new ArrayList<>(agents.values())) {
             if (agent.getState() == State.ONLINE) {
-                if (currentOnCallRatio < MIN_ON_CALL_RATIO + 0.05) continue;
+                if (currentOnCallRatio < MIN_ON_CALL_RATIO + 0.05) {
+                    continue;
+                }
 
                 if (random.nextInt(100) < BREAK_START_CHANCE_PERCENT) {
                     agent.setState(State.AWAY);
@@ -305,9 +340,15 @@ public class SipServerSimulator {
             } else if (agent.getState() == State.AWAY) {
                 long awaySeconds = (System.currentTimeMillis() - agent.getStateChangedAtMs()) / 1000;
                 int returnChance = BREAK_END_CHANCE_PERCENT;
-                if (currentOnCallRatio < MIN_ON_CALL_RATIO) returnChance += 40;
-                if (awaySeconds > 300) returnChance += 15;
-                if (awaySeconds > 600) returnChance += 25;
+                if (currentOnCallRatio < MIN_ON_CALL_RATIO) {
+                    returnChance += 40;
+                }
+                if (awaySeconds > 300) {
+                    returnChance += 15;
+                }
+                if (awaySeconds > 600) {
+                    returnChance += 25;
+                }
 
                 if (random.nextInt(100) < returnChance) {
                     agent.setState(State.ONLINE);
@@ -336,8 +377,12 @@ public class SipServerSimulator {
             } else if (agent.getState() == State.UNAVAILABLE) {
                 long unavailableSeconds = (System.currentTimeMillis() - agent.getStateChangedAtMs()) / 1000;
                 int loginChance = LOGIN_CHANCE_PERCENT;
-                if (unavailableSeconds > 120) loginChance += 10;
-                if (unavailableSeconds > 300) loginChance += 20;
+                if (unavailableSeconds > 120) {
+                    loginChance += 10;
+                }
+                if (unavailableSeconds > 300) {
+                    loginChance += 20;
+                }
 
                 if (random.nextInt(100) < loginChance) {
                     agent.setState(State.ONLINE);

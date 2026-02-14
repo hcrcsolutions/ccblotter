@@ -66,7 +66,9 @@ public class InfraTopologyBootstrap {
     private void registerMediaServers() {
         for (int i = 1; i <= props.getMediaServerCount(); i++) {
             int dcIdx = (i - 1) / 30;
-            if (dcIdx >= DATACENTERS.length) dcIdx = DATACENTERS.length - 1;
+            if (dcIdx >= DATACENTERS.length) {
+                dcIdx = DATACENTERS.length - 1;
+            }
             String nodeId = "media-" + i;
             String sourceId = nodeId;
 

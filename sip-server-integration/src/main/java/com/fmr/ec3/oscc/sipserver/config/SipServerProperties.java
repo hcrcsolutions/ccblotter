@@ -14,16 +14,51 @@ public class SipServerProperties {
     private long heartbeatIntervalMs = 5000;
     private long callSimIntervalMs = 3000;
 
-    public String getNodeId() { return nodeId; }
-    public void setNodeId(String nodeId) { this.nodeId = nodeId; }
-    public String getDatacenter() { return datacenter; }
-    public void setDatacenter(String datacenter) { this.datacenter = datacenter; }
-    public String getRegion() { return region; }
-    public void setRegion(String region) { this.region = region; }
-    public int getMaxSessions() { return maxSessions; }
-    public void setMaxSessions(int maxSessions) { this.maxSessions = maxSessions; }
-    public long getHeartbeatIntervalMs() { return heartbeatIntervalMs; }
-    public void setHeartbeatIntervalMs(long heartbeatIntervalMs) { this.heartbeatIntervalMs = heartbeatIntervalMs; }
-    public long getCallSimIntervalMs() { return callSimIntervalMs; }
-    public void setCallSimIntervalMs(long callSimIntervalMs) { this.callSimIntervalMs = callSimIntervalMs; }
+    public String getNodeId() {
+        return nodeId;
+    }
+
+    public void setNodeId(String nodeId) {
+        this.nodeId = nodeId;
+    }
+
+    public String getDatacenter() {
+        return datacenter;
+    }
+
+    public void setDatacenter(String datacenter) {
+        this.datacenter = datacenter;
+    }
+
+    public String getRegion() {
+        return region;
+    }
+
+    public void setRegion(String region) {
+        this.region = region;
+    }
+
+    public int getMaxSessions() {
+        return maxSessions;
+    }
+
+    public void setMaxSessions(int maxSessions) {
+        this.maxSessions = maxSessions;
+    }
+
+    public long getHeartbeatIntervalMs() {
+        return heartbeatIntervalMs;
+    }
+
+    public void setHeartbeatIntervalMs(long heartbeatIntervalMs) {
+        this.heartbeatIntervalMs = heartbeatIntervalMs;
+    }
+
+    public long getCallSimIntervalMs() {
+        return callSimIntervalMs;
+    }
+
+    public void setCallSimIntervalMs(long callSimIntervalMs) {
+        this.callSimIntervalMs = callSimIntervalMs;
+    }
 }

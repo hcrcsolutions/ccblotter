@@ -17,9 +17,23 @@ public class SimulatedQueuedCall {
         this.queuedAtMs = queuedAtMs;
     }
 
-    public String getCallId() { return callId; }
-    public String getOriginator() { return originator; }
-    public String getSkill() { return skill; }
-    public int getPriority() { return priority; }
-    public long getQueuedAtMs() { return queuedAtMs; }
+    public String getCallId() {
+        return callId;
+    }
+
+    public String getOriginator() {
+        return originator;
+    }
+
+    public String getSkill() {
+        return skill;
+    }
+
+    public int getPriority() {
+        return priority;
+    }
+
+    public long getQueuedAtMs() {
+        return queuedAtMs;
+    }
 }
