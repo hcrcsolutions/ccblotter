@@ -1,0 +1,10 @@
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/EventDeduplicatorTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/OrphanedStateWatchdogTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/handler/InfraEventHandlerTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/handler/SipEventHandlerTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/state/AgentStateWriterTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/state/CallStateWriterTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/state/InfraStateWriterTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/state/QueueStateWriterTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/state/RedisKeySchemaTest.java
+/Users/boris/dev/ccblotter/kafka-receiver/src/test/java/com/fmr/ec3/oscc/receiver/websocket/WebSocketBroadcasterTest.java

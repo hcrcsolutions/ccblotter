@@ -1,0 +1,5 @@
+com/fmr/ec3/oscc/sender/simulator/SipServerSimulatorTest.class
+com/fmr/ec3/oscc/sender/EventProducerTest.class
+com/fmr/ec3/oscc/sender/SimulationControllerTest.class
+com/fmr/ec3/oscc/sender/simulator/InfraHeartbeatSimulatorTest.class
+com/fmr/ec3/oscc/sender/simulator/InfraTopologyBootstrapTest.class

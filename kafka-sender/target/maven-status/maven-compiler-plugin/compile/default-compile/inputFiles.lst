@@ -1,0 +1,11 @@
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/EventProducer.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/KafkaSenderApplication.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/SimulationController.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/config/KafkaProducerConfig.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/config/SimulationProperties.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/model/SimulatedAgent.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/model/SimulatedCall.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/model/SimulatedQueuedCall.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/simulator/InfraHeartbeatSimulator.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/simulator/InfraTopologyBootstrap.java
+/Users/boris/dev/ccblotter/kafka-sender/src/main/java/com/fmr/ec3/oscc/sender/simulator/SipServerSimulator.java

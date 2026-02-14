@@ -1,0 +1,5 @@
+/Users/boris/dev/ccblotter/kafka-sender/src/test/java/com/fmr/ec3/oscc/sender/EventProducerTest.java
+/Users/boris/dev/ccblotter/kafka-sender/src/test/java/com/fmr/ec3/oscc/sender/SimulationControllerTest.java
+/Users/boris/dev/ccblotter/kafka-sender/src/test/java/com/fmr/ec3/oscc/sender/simulator/InfraHeartbeatSimulatorTest.java
+/Users/boris/dev/ccblotter/kafka-sender/src/test/java/com/fmr/ec3/oscc/sender/simulator/InfraTopologyBootstrapTest.java
+/Users/boris/dev/ccblotter/kafka-sender/src/test/java/com/fmr/ec3/oscc/sender/simulator/SipServerSimulatorTest.java

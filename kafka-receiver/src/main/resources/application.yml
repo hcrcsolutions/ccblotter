@@ -1,0 +1,29 @@
+server:
+  port: 8082
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: kafka-receiver
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: com.fmr.ec3.oscc.common.serde.EventEnvelopeDeserializer
+    listener:
+      ack-mode: manual
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 5000ms
+
+receiver:
+  websocket-throttle-ms: 500
+  orphan-check-interval-ms: 30000
+  orphan-threshold-minutes: 60
+  dedup-cache-size: 10000
+
+logging:
+  level:
+    com.fmr.ec3.oscc.receiver: DEBUG
