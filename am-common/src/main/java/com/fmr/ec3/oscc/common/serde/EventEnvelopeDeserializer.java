@@ -56,7 +56,7 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
             JavaType envelopeType = objectMapper.getTypeFactory()
                     .constructParametricType(EventEnvelope.class, payloadClass);
 
-            return objectMapper.readValue(data, envelopeType);
+            return objectMapper.treeToValue(tree, envelopeType);
         } catch (Exception e) {
             throw new RuntimeException("Failed to deserialize EventEnvelope", e);
         }

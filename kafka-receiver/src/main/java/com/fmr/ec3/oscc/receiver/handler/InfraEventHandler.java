@@ -2,6 +2,7 @@ package com.fmr.ec3.oscc.receiver.handler;
 
 import com.fmr.ec3.oscc.common.EventEnvelope;
 import com.fmr.ec3.oscc.common.EventType;
+import com.fmr.ec3.oscc.common.payload.infra.NodeAlarmPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeDeregisteredPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeHeartbeatPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeRegisteredPayload;
@@ -113,6 +114,9 @@ public class InfraEventHandler {
     }
 
     private void handleNodeAlarm(EventEnvelope<?> envelope) {
-        log.warn("Node alarm: {}", envelope.payload());
+        NodeAlarmPayload p = (NodeAlarmPayload) envelope.payload();
+        infraWriter.writeAlarm(p);
+        broadcaster.broadcastInfrastructure();
+        log.warn("Node alarm: {} {} on node {}", p.severity(), p.alarmType(), p.nodeId());
     }
 }

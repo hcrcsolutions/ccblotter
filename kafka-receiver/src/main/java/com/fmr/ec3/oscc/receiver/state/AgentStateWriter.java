@@ -116,6 +116,10 @@ public class AgentStateWriter {
     public void updateLastCallInfo(String agentId, String originator,
                                     Instant startTime, Instant endTime, long durationSeconds) {
         String key = RedisKeySchema.agentKey(agentId);
+        if (!Boolean.TRUE.equals(redisTemplate.hasKey(key))) {
+            log.warn("Agent {} no longer exists - skipping last-call metadata", agentId);
+            return;
+        }
         Map<String, String> fields = new HashMap<>();
         fields.put("lastCallOriginator", originator);
         fields.put("lastCallStartTime", startTime.toString());

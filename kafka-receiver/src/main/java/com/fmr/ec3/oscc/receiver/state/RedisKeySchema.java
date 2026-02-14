@@ -68,6 +68,11 @@ public final class RedisKeySchema {
 
     public static final String TOPOLOGY_VERSION = "infra:topology:version";
 
+    // Node alarm keys
+    public static String nodeAlarm(String nodeId) {
+        return INFRA_NODE_PREFIX + nodeId + ":alarm";
+    }
+
     // Watchdog leader election
     public static final String WATCHDOG_LOCK = "receiver:watchdog:lock";
 }

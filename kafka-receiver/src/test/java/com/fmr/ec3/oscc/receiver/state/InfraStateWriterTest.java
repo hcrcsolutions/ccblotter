@@ -1,5 +1,6 @@
 package com.fmr.ec3.oscc.receiver.state;
 
+import com.fmr.ec3.oscc.common.payload.infra.NodeAlarmPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeHeartbeatPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeMetricsDto;
 import com.fmr.ec3.oscc.common.payload.infra.NodeRegisteredPayload;
@@ -92,6 +93,35 @@ class InfraStateWriterTest {
 
         verify(hashOps).get("infra:node:sip-1:info", "nodeType");
         verify(redisTemplate).execute(any(SessionCallback.class));
+    }
+
+    @Test
+    void writeHeartbeatSkipsNullMetrics() {
+        var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, null,
+            new SessionBreakdownDto(70, 30, 10, 15, 65, 10));
+
+        writer.writeHeartbeat(payload);
+
+        verify(redisTemplate, never()).execute(any(SessionCallback.class));
+    }
+
+    @Test
+    void writeHeartbeatSkipsNullSessionBreakdown() {
+        var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500,
+            new NodeMetricsDto(50.0, 60.0, 10, 2, 0.01, 0.1, 42), null);
+
+        writer.writeHeartbeat(payload);
+
+        verify(redisTemplate, never()).execute(any(SessionCallback.class));
+    }
+
+    @Test
+    void writeAlarmPersistsToRedis() {
+        var payload = new NodeAlarmPayload("sip-2", "CPU_HIGH", "WARNING", 80.0, 92.5);
+
+        writer.writeAlarm(payload);
+
+        verify(hashOps).putAll(eq("infra:node:sip-2:alarm"), anyMap());
     }
 
     @Test

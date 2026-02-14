@@ -79,10 +79,11 @@ class InfraEventHandlerTest {
     }
 
     @Test
-    void handleNodeAlarmDoesNotThrow() {
+    void handleNodeAlarmPersistsAndBroadcasts() {
         var payload = new NodeAlarmPayload("sip-2", "CPU_HIGH", "WARNING", 80.0, 92.5);
         handler.handleLifecycle(envelope(EventType.NODE_ALARM, payload));
-        // Should just log, no state writer interactions
-        verifyNoInteractions(infraWriter);
+
+        verify(infraWriter).writeAlarm(payload);
+        verify(broadcaster).broadcastInfrastructure();
     }
 }

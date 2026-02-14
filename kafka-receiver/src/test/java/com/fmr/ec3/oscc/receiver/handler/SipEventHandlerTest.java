@@ -57,7 +57,7 @@ class SipEventHandlerTest {
         @Test
         void updatesExistingAgentToUnavailable() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
             var payload = new AgentLoggedOutPayload("AGT-0001", "end_of_shift", "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
@@ -94,7 +94,7 @@ class SipEventHandlerTest {
         @Test
         void breakStartedSetsAway() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
             var payload = new AgentBreakStartedPayload("AGT-0001", "Lunch", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
@@ -154,7 +154,7 @@ class SipEventHandlerTest {
         @Test
         void happyPath() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -203,7 +203,7 @@ class SipEventHandlerTest {
         @Test
         void removesFromQueueIdempotently() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -220,7 +220,7 @@ class SipEventHandlerTest {
         @Test
         void handlesNullQueuedCallId() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -234,7 +234,7 @@ class SipEventHandlerTest {
         @Test
         void broadcastsAllTopics() {
             when(agentWriter.getAgentStateAndCallId("AGT-0001"))
-                .thenReturn(List.of("ONLINE", ""));
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(

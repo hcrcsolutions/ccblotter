@@ -1,5 +1,6 @@
 package com.fmr.ec3.oscc.receiver.state;
 
+import com.fmr.ec3.oscc.common.payload.infra.NodeAlarmPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeHeartbeatPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeMetricsDto;
 import com.fmr.ec3.oscc.common.payload.infra.NodeRegisteredPayload;
@@ -41,8 +42,19 @@ public class InfraStateWriter {
     public void writeHeartbeat(NodeHeartbeatPayload payload) {
         String nodeId = payload.nodeId();
 
-        // Build all data maps upfront
         NodeMetricsDto m = payload.metrics();
+        if (m == null) {
+            log.warn("Heartbeat for node {} has null metrics - skipping", nodeId);
+            return;
+        }
+
+        SessionBreakdownDto b = payload.sessionBreakdown();
+        if (b == null) {
+            log.warn("Heartbeat for node {} has null sessionBreakdown - skipping", nodeId);
+            return;
+        }
+
+        // Build all data maps upfront
         Map<String, String> metrics = new HashMap<>();
         metrics.put("cpu", String.valueOf(m.cpuPercent()));
         metrics.put("memory", String.valueOf(m.memoryPercent()));
@@ -52,7 +64,6 @@ public class InfraStateWriter {
         metrics.put("errorRate", String.valueOf(m.errorRate()));
         metrics.put("mos", String.valueOf(m.mosScore()));
 
-        SessionBreakdownDto b = payload.sessionBreakdown();
         Map<String, String> sessions = new HashMap<>();
         sessions.put("active", String.valueOf(payload.activeSessions()));
         sessions.put("inbound", String.valueOf(b.inboundSessions()));
@@ -148,12 +159,25 @@ public class InfraStateWriter {
         redisTemplate.opsForValue().set(RedisKeySchema.TOPOLOGY_VERSION, Instant.now().toString());
     }
 
+    public void writeAlarm(NodeAlarmPayload payload) {
+        String key = RedisKeySchema.nodeAlarm(payload.nodeId());
+        Map<String, String> alarm = new HashMap<>();
+        alarm.put("nodeId", payload.nodeId());
+        alarm.put("alarmType", payload.alarmType());
+        alarm.put("severity", payload.severity());
+        alarm.put("thresholdValue", String.valueOf(payload.thresholdValue()));
+        alarm.put("actualValue", String.valueOf(payload.actualValue()));
+        alarm.put("timestamp", Instant.now().toString());
+        redisTemplate.opsForHash().putAll(key, alarm);
+    }
+
     public void removeNodeState(String nodeId) {
         String infoKey = RedisKeySchema.nodeInfo(nodeId);
         String heartbeatKey = RedisKeySchema.nodeHeartbeat(nodeId);
         String metricsKey = RedisKeySchema.nodeMetrics(nodeId);
         String sessionsKey = RedisKeySchema.nodeSessions(nodeId);
         String trendsKey = RedisKeySchema.nodeTrends(nodeId);
+        String alarmKey = RedisKeySchema.nodeAlarm(nodeId);
 
         // Look up nodeType before deleting so we can clean up the by-type set
         Object nodeType = redisTemplate.opsForHash().get(infoKey, "nodeType");
@@ -168,6 +192,7 @@ public class InfraStateWriter {
                 operations.delete(metricsKey);
                 operations.delete(sessionsKey);
                 operations.delete(trendsKey);
+                operations.delete(alarmKey);
                 operations.opsForSet().remove(RedisKeySchema.INFRA_NODES_ALL, nodeId);
                 if (nodeType != null) {
                     operations.opsForSet().remove(

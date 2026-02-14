@@ -100,11 +100,22 @@ class AgentStateWriterTest {
 
     @Test
     void updateLastCallInfoWritesAllFieldsAsSingleHmset() {
+        when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(true);
         Instant start = Instant.parse("2024-01-01T10:00:00Z");
         Instant end = Instant.parse("2024-01-01T10:05:00Z");
         writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300);
 
         verify(hashOps).putAll(eq("agent:AGT-0001"), anyMap());
+    }
+
+    @Test
+    void updateLastCallInfoSkipsDeletedAgent() {
+        when(redisTemplate.hasKey("agent:AGT-0001")).thenReturn(false);
+        Instant start = Instant.parse("2024-01-01T10:00:00Z");
+        Instant end = Instant.parse("2024-01-01T10:05:00Z");
+        writer.updateLastCallInfo("AGT-0001", "(212) 555-0100", start, end, 300);
+
+        verify(hashOps, never()).putAll(anyString(), anyMap());
     }
 
     @SuppressWarnings("unchecked")
