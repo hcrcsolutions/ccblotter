@@ -55,6 +55,13 @@ class EventDeduplicatorTest {
     }
 
     @Test
+    void nullEventIdIsNeverDuplicate() {
+        // null eventIds should always be processed (never cached)
+        assertFalse(deduplicator.isDuplicate(0, null));
+        assertFalse(deduplicator.isDuplicate(0, null));
+    }
+
+    @Test
     void multiplePartitionsEachHaveOwnCache() {
         // Fill partition 0
         for (int i = 1; i <= 5; i++) {

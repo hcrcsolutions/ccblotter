@@ -4,6 +4,7 @@ import com.fmr.ec3.oscc.common.EventEnvelope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Serializer;
 
 public class EventEnvelopeSerializer implements Serializer<EventEnvelope<?>> {
@@ -24,7 +25,7 @@ public class EventEnvelopeSerializer implements Serializer<EventEnvelope<?>> {
         try {
             return objectMapper.writeValueAsBytes(data);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to serialize EventEnvelope", e);
+            throw new SerializationException("Failed to serialize EventEnvelope", e);
         }
     }
 }

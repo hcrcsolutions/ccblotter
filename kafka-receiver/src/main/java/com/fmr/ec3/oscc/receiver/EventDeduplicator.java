@@ -1,6 +1,8 @@
 package com.fmr.ec3.oscc.receiver;
 
 import com.fmr.ec3.oscc.receiver.config.ReceiverProperties;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -12,6 +14,8 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 @Component
 public class EventDeduplicator {
+
+    private static final Logger log = LoggerFactory.getLogger(EventDeduplicator.class);
 
     private final int maxSize;
     private final ConcurrentHashMap<Integer, LinkedHashMap<String, Boolean>> partitionCaches =
@@ -25,6 +29,11 @@ public class EventDeduplicator {
      * Returns true if this event has already been seen (duplicate).
      */
     public boolean isDuplicate(int partition, String eventId) {
+        if (eventId == null) {
+            log.warn("Event with null eventId on partition {} - cannot deduplicate, processing anyway", partition);
+            return false;
+        }
+
         LinkedHashMap<String, Boolean> cache = partitionCaches.computeIfAbsent(partition,
             k -> new LinkedHashMap<>(16, 0.75f, true) {
                 @Override
