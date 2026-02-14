@@ -1,0 +1,18 @@
+server:
+  port: 8082
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+sip-server:
+  node-id: sip-1
+  datacenter: dc1
+  region: us-east
+  max-sessions: 500
+  heartbeat-interval-ms: 5000
+  call-sim-interval-ms: 3000
+
+logging:
+  level:
+    com.fmr.ec3.oscc.sipserver: DEBUG

@@ -20,6 +20,8 @@
         <module>am-common</module>
         <module>kafka-sender</module>
         <module>kafka-receiver</module>
+        <module>sip-server-integration</module>
+        <module>media-server-integration</module>
     </modules>
 
     <properties>

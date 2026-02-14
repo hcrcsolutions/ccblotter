@@ -1,0 +1,18 @@
+server:
+  port: 8083
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+media-server:
+  node-id: media-1
+  datacenter: dc1
+  region: us-east
+  max-sessions: 100
+  heartbeat-interval-ms: 5000
+  session-sim-interval-ms: 4000
+
+logging:
+  level:
+    com.fmr.ec3.oscc.mediaserver: DEBUG
