@@ -14,6 +14,7 @@ import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.listener.ContainerProperties;
 import org.springframework.kafka.listener.DefaultErrorHandler;
+import org.apache.kafka.common.errors.SerializationException;
 import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.Map;
@@ -65,6 +66,7 @@ public class KafkaConsumerConfig {
 
         // Don't retry data/schema errors — they will never succeed
         errorHandler.addNotRetryableExceptions(
+            SerializationException.class,
             ClassCastException.class,
             IllegalArgumentException.class,
             NullPointerException.class

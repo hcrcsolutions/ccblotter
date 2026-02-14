@@ -105,8 +105,21 @@ public class SipEventHandler {
 
     private void handleAgentLoggedIn(EventEnvelope<?> envelope) {
         AgentLoggedInPayload p = (AgentLoggedInPayload) envelope.payload();
+
+        // Check if agent has an active call that needs cleanup (e.g., re-registration while on call)
+        List<String> snapshot = agentWriter.getAgentStateAndCallId(p.agentId());
+        String currentState = snapshot.get(0);
+        String existingCallId = snapshot.get(1);
+
+        if ("ON_CALL".equals(currentState) && existingCallId != null) {
+            log.warn("Agent {} re-registered while ON_CALL with call {} - removing orphaned call",
+                p.agentId(), existingCallId);
+            callWriter.removeCall(existingCallId);
+        }
+
         agentWriter.saveAgent(p.agentId(), p.agentName(), "ONLINE", null);
         broadcaster.broadcastAgents();
+        broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
     }
 

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.RedisScript;
@@ -33,13 +32,48 @@ class AgentStateWriterTest {
         writer = new AgentStateWriter(redisTemplate);
     }
 
+    @SuppressWarnings("unchecked")
     @Test
-    void saveAgentUsesTransaction() {
-        when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
+    void saveAgentUsesLuaScript() {
+        doReturn(1L).when(redisTemplate).execute(
+            any(RedisScript.class), anyList(),
+            any(), any(), any(), any(), any(), any()
+        );
 
         writer.saveAgent("AGT-0001", "John Smith", "ONLINE", null);
 
-        verify(redisTemplate).execute(any(SessionCallback.class));
+        verify(redisTemplate).execute(
+            any(RedisScript.class),
+            eq(List.of("agent:AGT-0001", "agents:all", "agents:by-state:ONLINE")),
+            eq("agents:by-state:"),
+            eq("AGT-0001"),
+            eq("John Smith"),
+            eq("ONLINE"),
+            anyString(),
+            eq("")
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void saveAgentPassesCallIdWhenProvided() {
+        doReturn(1L).when(redisTemplate).execute(
+            any(RedisScript.class), anyList(),
+            any(), any(), any(), any(), any(), any()
+        );
+
+        writer.saveAgent("AGT-0001", "John Smith", "ON_CALL", "call-123");
+
+        verify(redisTemplate).execute(
+            any(RedisScript.class),
+            eq(List.of("agent:AGT-0001", "agents:all", "agents:by-state:ON_CALL")),
+            eq("agents:by-state:"),
+            eq("AGT-0001"),
+            eq("John Smith"),
+            eq("ON_CALL"),
+            anyString(),
+            eq("call-123")
+        );
     }
 
     @SuppressWarnings("unchecked")

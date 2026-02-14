@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import org.apache.kafka.common.errors.SerializationException;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class EventEnvelopeSerdeTest {
@@ -235,7 +237,7 @@ class EventEnvelopeSerdeTest {
     @Test
     void deserializeMissingEventTypeThrows() {
         byte[] json = "{\"eventId\":\"evt-1\",\"payload\":{}}".getBytes();
-        var ex = assertThrows(RuntimeException.class,
+        var ex = assertThrows(SerializationException.class,
             () -> deserializer.deserialize("topic", json));
         assertTrue(ex.getCause().getMessage().contains("eventType"));
     }

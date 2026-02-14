@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 
 import java.util.Map;
@@ -58,7 +59,7 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
 
             return objectMapper.treeToValue(tree, envelopeType);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to deserialize EventEnvelope", e);
+            throw new SerializationException("Failed to deserialize EventEnvelope", e);
         }
     }
 }

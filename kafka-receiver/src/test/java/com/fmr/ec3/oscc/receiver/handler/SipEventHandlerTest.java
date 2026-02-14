@@ -43,12 +43,38 @@ class SipEventHandlerTest {
     class AgentLoggedInTests {
         @Test
         void savesAgentAsOnline() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(java.util.Arrays.asList(null, null));
             var payload = new AgentLoggedInPayload("AGT-0001", "John Smith", List.of("Sales"), "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_IN, payload));
 
             verify(agentWriter).saveAgent("AGT-0001", "John Smith", "ONLINE", null);
+            verify(callWriter, never()).removeCall(anyString());
             verify(broadcaster).broadcastAgents();
             verify(broadcaster).broadcastSummary();
+        }
+
+        @Test
+        void reLoginCleansUpExistingOnlineAgent() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(java.util.Arrays.asList("ONLINE", null));
+            var payload = new AgentLoggedInPayload("AGT-0001", "John Smith", List.of("Sales"), "sip-1");
+            handler.handle(envelope(EventType.AGENT_LOGGED_IN, payload));
+
+            verify(agentWriter).saveAgent("AGT-0001", "John Smith", "ONLINE", null);
+            verify(callWriter, never()).removeCall(anyString());
+        }
+
+        @Test
+        void removesOrphanedCallOnReLogin() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "active-call-3"));
+            var payload = new AgentLoggedInPayload("AGT-0001", "John Smith", List.of("Sales"), "sip-1");
+            handler.handle(envelope(EventType.AGENT_LOGGED_IN, payload));
+
+            verify(callWriter).removeCall("active-call-3");
+            verify(agentWriter).saveAgent("AGT-0001", "John Smith", "ONLINE", null);
+            verify(broadcaster).broadcastCalls();
         }
     }
 

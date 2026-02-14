@@ -2,9 +2,6 @@ package com.fmr.ec3.oscc.receiver.state;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataAccessException;
-import org.springframework.data.redis.core.RedisOperations;
-import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
@@ -25,10 +22,31 @@ public class AgentStateWriter {
 
     private final StringRedisTemplate redisTemplate;
 
+    private static final DefaultRedisScript<Long> SAVE_AGENT_SCRIPT;
     private static final DefaultRedisScript<Long> UPDATE_STATE_SCRIPT;
     private static final DefaultRedisScript<Long> REMOVE_AGENT_SCRIPT;
 
     static {
+        // Lua script for saveAgent: atomically cleans up old state set before writing new state.
+        // KEYS[1] = agent:{id}, KEYS[2] = agents:all, KEYS[3] = agents:by-state:{newState}
+        // ARGV[1] = agents:by-state: prefix, ARGV[2] = agentId, ARGV[3] = name,
+        // ARGV[4] = state, ARGV[5] = stateChangedAt, ARGV[6] = currentCallId (or '')
+        SAVE_AGENT_SCRIPT = new DefaultRedisScript<>();
+        SAVE_AGENT_SCRIPT.setScriptText(
+            "local oldState = redis.call('HGET', KEYS[1], 'state') " +
+            "if oldState then redis.call('SREM', ARGV[1] .. oldState, ARGV[2]) end " +
+            "redis.call('HSET', KEYS[1], 'id', ARGV[2], 'name', ARGV[3], 'state', ARGV[4], 'stateChangedAt', ARGV[5]) " +
+            "if ARGV[6] ~= '' then " +
+            "  redis.call('HSET', KEYS[1], 'currentCallId', ARGV[6]) " +
+            "else " +
+            "  redis.call('HDEL', KEYS[1], 'currentCallId') " +
+            "end " +
+            "redis.call('SADD', KEYS[2], ARGV[2]) " +
+            "redis.call('SADD', KEYS[3], ARGV[2]) " +
+            "return 1"
+        );
+        SAVE_AGENT_SCRIPT.setResultType(Long.class);
+
         UPDATE_STATE_SCRIPT = new DefaultRedisScript<>();
         UPDATE_STATE_SCRIPT.setScriptText(
             "local oldState = redis.call('HGET', KEYS[1], 'state') " +
@@ -61,28 +79,19 @@ public class AgentStateWriter {
     }
 
     public void saveAgent(String agentId, String name, String state, String currentCallId) {
-        Map<String, String> agentMap = new HashMap<>();
-        agentMap.put("id", agentId);
-        agentMap.put("name", name);
-        agentMap.put("state", state);
-        agentMap.put("stateChangedAt", Instant.now().toString());
-        if (currentCallId != null) {
-            agentMap.put("currentCallId", currentCallId);
-        }
-
         String key = RedisKeySchema.agentKey(agentId);
         String stateSetKey = RedisKeySchema.agentsByState(state);
-        redisTemplate.execute(new SessionCallback<>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Object execute(RedisOperations operations) throws DataAccessException {
-                operations.multi();
-                operations.opsForHash().putAll(key, agentMap);
-                operations.opsForSet().add(RedisKeySchema.AGENTS_ALL_KEY, agentId);
-                operations.opsForSet().add(stateSetKey, agentId);
-                return operations.exec();
-            }
-        });
+
+        redisTemplate.execute(
+            SAVE_AGENT_SCRIPT,
+            List.of(key, RedisKeySchema.AGENTS_ALL_KEY, stateSetKey),
+            RedisKeySchema.AGENTS_BY_STATE_PREFIX,
+            agentId,
+            name,
+            state,
+            Instant.now().toString(),
+            currentCallId != null ? currentCallId : ""
+        );
 
         log.debug("Saved agent {} state={}", agentId, state);
     }
