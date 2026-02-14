@@ -25,7 +25,7 @@ public class KafkaProducerConfig {
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, EventEnvelopeSerializer.class);
         config.put(ProducerConfig.ACKS_CONFIG, "all");
         config.put(ProducerConfig.RETRIES_CONFIG, 3);
-        config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 30_000);
+        config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 120_000);
         config.put(ProducerConfig.LINGER_MS_CONFIG, 5);
         config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
         config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
