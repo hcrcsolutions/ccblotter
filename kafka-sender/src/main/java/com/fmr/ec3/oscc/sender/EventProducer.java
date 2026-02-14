@@ -38,7 +38,7 @@ public class EventProducer {
         kafkaTemplate.send(topic, partitionKey, envelope)
             .whenComplete((result, ex) -> {
                 if (ex != null) {
-                    log.error("Failed to send {} to {}: {}", eventType, topic, ex.getMessage());
+                    log.error("Failed to send {} to {}", eventType, topic, ex);
                 } else {
                     log.debug("Sent {} to {} partition {} offset {}",
                         eventType, topic,

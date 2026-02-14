@@ -21,12 +21,17 @@ public class KafkaProducerConfig {
 
     @Bean
     public ProducerFactory<String, EventEnvelope<?>> producerFactory() {
-        return new DefaultKafkaProducerFactory<>(Map.of(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, EventEnvelopeSerializer.class,
-            ProducerConfig.ACKS_CONFIG, "all"
-        ));
+        Map<String, Object> config = new java.util.HashMap<>();
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, EventEnvelopeSerializer.class);
+        config.put(ProducerConfig.ACKS_CONFIG, "all");
+        config.put(ProducerConfig.RETRIES_CONFIG, 3);
+        config.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 30_000);
+        config.put(ProducerConfig.LINGER_MS_CONFIG, 5);
+        config.put(ProducerConfig.COMPRESSION_TYPE_CONFIG, "lz4");
+        config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);
+        return new DefaultKafkaProducerFactory<>(config);
     }
 
     @Bean

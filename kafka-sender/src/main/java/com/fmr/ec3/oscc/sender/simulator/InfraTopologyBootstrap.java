@@ -40,7 +40,7 @@ public class InfraTopologyBootstrap {
     }
 
     public List<String> getRegisteredNodeIds() {
-        return registeredNodeIds;
+        return List.copyOf(registeredNodeIds);
     }
 
     private void registerSipServers() {
