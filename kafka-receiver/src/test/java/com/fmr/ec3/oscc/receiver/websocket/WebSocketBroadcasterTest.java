@@ -8,10 +8,12 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -41,12 +43,14 @@ class WebSocketBroadcasterTest {
     }
 
     @Test
-    void broadcastAgentsSendsToTopic() {
+    void broadcastAgentsUsesPipelineAndSendsToTopic() {
         when(setOps.members("agents:all")).thenReturn(Set.of("AGT-0001"));
-        when(hashOps.entries("agent:AGT-0001")).thenReturn(Map.of("id", "AGT-0001", "state", "ONLINE"));
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(Map.of("id", "AGT-0001", "state", "ONLINE")));
 
         broadcaster.broadcastAgents();
 
+        verify(redisTemplate).executePipelined(any(SessionCallback.class));
         verify(messagingTemplate).convertAndSend(eq("/topic/agents"), anyList());
     }
 
@@ -95,7 +99,8 @@ class WebSocketBroadcasterTest {
     @Test
     void broadcastQueueIncludesStats() {
         when(setOps.members("queue:calls")).thenReturn(Set.of("q-1"));
-        when(hashOps.entries("queue:call:q-1")).thenReturn(Map.of("id", "q-1"));
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(Map.of("id", "q-1")));
 
         broadcaster.broadcastQueue();
 
@@ -120,8 +125,9 @@ class WebSocketBroadcasterTest {
     @Test
     void broadcastAgentsSkipsEmptyHashes() {
         when(setOps.members("agents:all")).thenReturn(Set.of("AGT-0001", "AGT-0002"));
-        when(hashOps.entries("agent:AGT-0001")).thenReturn(Map.of("id", "AGT-0001"));
-        when(hashOps.entries("agent:AGT-0002")).thenReturn(Map.of()); // Empty = deleted
+        // Pipeline returns two maps: one with data, one empty (deleted between SMEMBERS and HGETALL)
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(Map.of("id", "AGT-0001"), Map.of()));
 
         broadcaster.broadcastAgents();
 

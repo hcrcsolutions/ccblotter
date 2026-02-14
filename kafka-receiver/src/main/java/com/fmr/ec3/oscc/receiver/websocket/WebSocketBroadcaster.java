@@ -5,12 +5,16 @@ import com.fmr.ec3.oscc.receiver.state.RedisKeySchema;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  * Broadcasts state changes to WebSocket clients.
@@ -40,54 +44,46 @@ public class WebSocketBroadcaster {
     public void broadcastAgents() {
         if (!shouldBroadcast("/topic/agents")) return;
 
-        List<Map<Object, Object>> agents = new ArrayList<>();
         Set<String> agentIds = redisTemplate.opsForSet().members(RedisKeySchema.AGENTS_ALL_KEY);
-        if (agentIds != null) {
-            for (String id : agentIds) {
-                Map<Object, Object> data = redisTemplate.opsForHash().entries(RedisKeySchema.agentKey(id));
-                if (!data.isEmpty()) {
-                    agents.add(data);
-                }
-            }
+        if (agentIds == null || agentIds.isEmpty()) {
+            messagingTemplate.convertAndSend("/topic/agents", Collections.emptyList());
+            return;
         }
+
+        List<Map<Object, Object>> agents = fetchHashesPipelined(
+            agentIds, RedisKeySchema::agentKey);
         messagingTemplate.convertAndSend("/topic/agents", agents);
     }
 
     public void broadcastCalls() {
         if (!shouldBroadcast("/topic/calls")) return;
 
-        List<Map<Object, Object>> calls = new ArrayList<>();
         Set<String> callIds = redisTemplate.opsForSet().members(RedisKeySchema.ACTIVE_CALLS_KEY);
-        if (callIds != null) {
-            for (String id : callIds) {
-                Map<Object, Object> data = redisTemplate.opsForHash().entries(RedisKeySchema.callKey(id));
-                if (!data.isEmpty()) {
-                    calls.add(data);
-                }
-            }
+        if (callIds == null || callIds.isEmpty()) {
+            messagingTemplate.convertAndSend("/topic/calls", Collections.emptyList());
+            return;
         }
+
+        List<Map<Object, Object>> calls = fetchHashesPipelined(
+            callIds, RedisKeySchema::callKey);
         messagingTemplate.convertAndSend("/topic/calls", calls);
     }
 
     public void broadcastQueue() {
         if (!shouldBroadcast("/topic/queue")) return;
 
-        List<Map<Object, Object>> calls = new ArrayList<>();
         Set<String> callIds = redisTemplate.opsForSet().members(RedisKeySchema.QUEUE_CALLS_KEY);
-        if (callIds != null) {
-            for (String id : callIds) {
-                Map<Object, Object> data = redisTemplate.opsForHash()
-                    .entries(RedisKeySchema.queueCallKey(id));
-                if (!data.isEmpty()) {
-                    calls.add(data);
-                }
-            }
+
+        List<Map<Object, Object>> calls;
+        if (callIds == null || callIds.isEmpty()) {
+            calls = Collections.emptyList();
+        } else {
+            calls = fetchHashesPipelined(callIds, RedisKeySchema::queueCallKey);
         }
 
-        int queuedCount = calls.size();
         Map<String, Object> payload = new HashMap<>();
         payload.put("calls", calls);
-        payload.put("stats", Map.of("queuedCount", queuedCount));
+        payload.put("stats", Map.of("queuedCount", calls.size()));
 
         messagingTemplate.convertAndSend("/topic/queue", payload);
     }
@@ -115,6 +111,35 @@ public class WebSocketBroadcaster {
         // Infrastructure broadcasts are handled by am-api which reads from Redis
         // We just signal a topology version update
         log.debug("Infrastructure state updated in Redis");
+    }
+
+    /**
+     * Pipelines HGETALL for all IDs in a single Redis round-trip.
+     * At 50K agents this turns 50,000 round-trips into 1.
+     */
+    @SuppressWarnings("unchecked")
+    private List<Map<Object, Object>> fetchHashesPipelined(
+            Set<String> ids, Function<String, String> keyMapper) {
+        List<String> idList = new ArrayList<>(ids);
+
+        List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                for (String id : idList) {
+                    operations.opsForHash().entries(keyMapper.apply(id));
+                }
+                return null;
+            }
+        });
+
+        List<Map<Object, Object>> out = new ArrayList<>(idList.size());
+        for (Object result : results) {
+            Map<Object, Object> data = (Map<Object, Object>) result;
+            if (data != null && !data.isEmpty()) {
+                out.add(data);
+            }
+        }
+        return out;
     }
 
     private boolean shouldBroadcast(String topic) {
