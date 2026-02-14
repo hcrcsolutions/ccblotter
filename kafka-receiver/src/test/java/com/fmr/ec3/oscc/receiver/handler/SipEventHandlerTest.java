@@ -56,16 +56,17 @@ class SipEventHandlerTest {
     class AgentLoggedOutTests {
         @Test
         void updatesExistingAgentToUnavailable() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
+            when(agentWriter.updateAgentState("AGT-0001", "UNAVAILABLE", null)).thenReturn(true);
             var payload = new AgentLoggedOutPayload("AGT-0001", "end_of_shift", "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "UNAVAILABLE", null);
+            verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
         }
 
         @Test
         void createsUnknownAgentAsUnavailable() {
-            when(agentWriter.agentExists("AGT-9999")).thenReturn(false);
+            when(agentWriter.updateAgentState("AGT-9999", "UNAVAILABLE", null)).thenReturn(false);
             var payload = new AgentLoggedOutPayload("AGT-9999", "end_of_shift", "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
@@ -77,25 +78,27 @@ class SipEventHandlerTest {
     class AgentBreakTests {
         @Test
         void breakStartedSetsAway() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
+            when(agentWriter.updateAgentState("AGT-0001", "AWAY", null)).thenReturn(true);
             var payload = new AgentBreakStartedPayload("AGT-0001", "Lunch", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "AWAY", null);
+            verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
         }
 
         @Test
         void breakEndedSetsOnline() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
+            when(agentWriter.updateAgentState("AGT-0001", "ONLINE", null)).thenReturn(true);
             var payload = new AgentBreakEndedPayload("AGT-0001", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_ENDED, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
+            verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
         }
 
         @Test
         void breakStartedCreatesUnknownAgent() {
-            when(agentWriter.agentExists("AGT-9999")).thenReturn(false);
+            when(agentWriter.updateAgentState("AGT-9999", "AWAY", null)).thenReturn(false);
             var payload = new AgentBreakStartedPayload("AGT-9999", "Lunch", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
@@ -120,9 +123,8 @@ class SipEventHandlerTest {
     class CallRoutedToAgentTests {
         @Test
         void happyPath() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
-            when(agentWriter.getAgentState("AGT-0001")).thenReturn("ONLINE");
-            when(queueWriter.queuedCallExists("queued-1")).thenReturn(true);
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -138,8 +140,8 @@ class SipEventHandlerTest {
 
         @Test
         void createsAgentOnReferenceWhenMissing() {
-            when(agentWriter.agentExists("AGT-9999")).thenReturn(false);
-            when(agentWriter.getAgentState("AGT-9999")).thenReturn("ONLINE");
+            when(agentWriter.getAgentStateAndCallId("AGT-9999"))
+                .thenReturn(java.util.Arrays.asList(null, null));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -154,9 +156,8 @@ class SipEventHandlerTest {
 
         @Test
         void forceEndsExistingCallWhenAgentAlreadyOnCall() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
-            when(agentWriter.getAgentState("AGT-0001")).thenReturn("ON_CALL");
-            when(agentWriter.getAgentCurrentCallId("AGT-0001")).thenReturn("old-call");
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "old-call"));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -170,10 +171,9 @@ class SipEventHandlerTest {
         }
 
         @Test
-        void proceedsWhenQueueEntryMissing() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
-            when(agentWriter.getAgentState("AGT-0001")).thenReturn("ONLINE");
-            when(queueWriter.queuedCallExists("missing-queue")).thenReturn(false);
+        void removesFromQueueIdempotently() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -181,15 +181,16 @@ class SipEventHandlerTest {
                 "missing-queue", "Sales", now, "sip-1");
             handler.handle(envelope(EventType.CALL_ROUTED_TO_AGENT, payload));
 
-            verify(queueWriter, never()).removeFromQueue(anyString());
+            // removeFromQueue is idempotent — always called, no exists check
+            verify(queueWriter).removeFromQueue("missing-queue");
             verify(callWriter).saveCall(eq("call-1"), anyString(), eq("AGT-0001"),
                 anyString(), any(), eq("TALKING"));
         }
 
         @Test
         void handlesNullQueuedCallId() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
-            when(agentWriter.getAgentState("AGT-0001")).thenReturn("ONLINE");
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -197,14 +198,13 @@ class SipEventHandlerTest {
                 null, "Sales", now, "sip-1");
             handler.handle(envelope(EventType.CALL_ROUTED_TO_AGENT, payload));
 
-            verify(queueWriter, never()).queuedCallExists(anyString());
             verify(queueWriter, never()).removeFromQueue(anyString());
         }
 
         @Test
         void broadcastsAllTopics() {
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
-            when(agentWriter.getAgentState("AGT-0001")).thenReturn("ONLINE");
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
 
             long now = System.currentTimeMillis();
             var payload = new CallRoutedToAgentPayload(
@@ -223,8 +223,7 @@ class SipEventHandlerTest {
     class CallEndedTests {
         @Test
         void happyPath() {
-            when(callWriter.callExists("call-1")).thenReturn(true);
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
+            when(agentWriter.updateAgentState("AGT-0001", "ONLINE", null)).thenReturn(true);
 
             long start = 1700000000000L;
             long end = 1700000300000L;
@@ -232,38 +231,35 @@ class SipEventHandlerTest {
                 "call-1", "AGT-0001", "(212) 555-0100", start, end, 300, "normal_clearing", "sip-1");
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
+            verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
             verify(agentWriter).updateLastCallInfo("AGT-0001", "(212) 555-0100",
                 Instant.ofEpochMilli(start), Instant.ofEpochMilli(end), 300);
-            verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
             verify(callWriter).removeCall("call-1");
         }
 
         @Test
-        void proceedsForUnknownCall() {
-            when(callWriter.callExists("unknown-call")).thenReturn(false);
-            when(agentWriter.agentExists("AGT-0001")).thenReturn(true);
+        void removesCallIdempotently() {
+            when(agentWriter.updateAgentState("AGT-0001", "ONLINE", null)).thenReturn(true);
 
             var payload = new CallEndedPayload(
                 "unknown-call", "AGT-0001", "(212) 555-0100",
                 1700000000000L, 1700000300000L, 300, "normal_clearing", "sip-1");
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
-            // Should still update agent and remove call
-            verify(agentWriter).updateAgentState("AGT-0001", "ONLINE", null);
+            // No callExists check — removeCall is idempotent
             verify(callWriter).removeCall("unknown-call");
         }
 
         @Test
-        void skipsAgentUpdateForUnknownAgent() {
-            when(callWriter.callExists("call-1")).thenReturn(true);
-            when(agentWriter.agentExists("AGT-9999")).thenReturn(false);
+        void skipsLastCallInfoForUnknownAgent() {
+            when(agentWriter.updateAgentState("AGT-9999", "ONLINE", null)).thenReturn(false);
 
             var payload = new CallEndedPayload(
                 "call-1", "AGT-9999", "(212) 555-0100",
                 1700000000000L, 1700000300000L, 300, "normal_clearing", "sip-1");
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
-            verify(agentWriter, never()).updateAgentState(anyString(), anyString(), any());
+            // updateAgentState returned false => skip last-call metadata
             verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong());
             verify(callWriter).removeCall("call-1");
         }
@@ -272,24 +268,13 @@ class SipEventHandlerTest {
     @Nested
     class CallAbandonedTests {
         @Test
-        void removesQueuedCall() {
-            when(queueWriter.queuedCallExists("call-1")).thenReturn(true);
+        void removesQueuedCallIdempotently() {
             var payload = new CallAbandonedPayload(
                 "call-1", "(212) 555-0100", 1700000000000L, 1700000060000L, 60, "sip-1");
             handler.handle(envelope(EventType.CALL_ABANDONED, payload));
 
+            // removeFromQueue is idempotent — no exists check
             verify(queueWriter).removeFromQueue("call-1");
-            verify(broadcaster).broadcastQueue();
-        }
-
-        @Test
-        void handlesUnknownQueuedCall() {
-            when(queueWriter.queuedCallExists("unknown")).thenReturn(false);
-            var payload = new CallAbandonedPayload(
-                "unknown", "(212) 555-0100", 1700000000000L, 1700000060000L, 60, "sip-1");
-            handler.handle(envelope(EventType.CALL_ABANDONED, payload));
-
-            verify(queueWriter, never()).removeFromQueue(anyString());
             verify(broadcaster).broadcastQueue();
         }
     }
@@ -298,21 +283,21 @@ class SipEventHandlerTest {
     class CallHoldChangedTests {
         @Test
         void updatesCallState() {
-            when(callWriter.callExists("call-1")).thenReturn(true);
+            when(callWriter.updateCallStateIfExists("call-1", "ON_HOLD")).thenReturn(true);
             var payload = new CallHoldChangedPayload("call-1", "AGT-0001", "ON_HOLD", "sip-1");
             handler.handle(envelope(EventType.CALL_HOLD_CHANGED, payload));
 
-            verify(callWriter).updateCallState("call-1", "ON_HOLD");
+            verify(callWriter).updateCallStateIfExists("call-1", "ON_HOLD");
             verify(broadcaster).broadcastCalls();
         }
 
         @Test
         void handlesUnknownCall() {
-            when(callWriter.callExists("unknown")).thenReturn(false);
+            when(callWriter.updateCallStateIfExists("unknown", "ON_HOLD")).thenReturn(false);
             var payload = new CallHoldChangedPayload("unknown", "AGT-0001", "ON_HOLD", "sip-1");
             handler.handle(envelope(EventType.CALL_HOLD_CHANGED, payload));
 
-            verify(callWriter, never()).updateCallState(anyString(), anyString());
+            verify(callWriter).updateCallStateIfExists("unknown", "ON_HOLD");
             verify(broadcaster).broadcastCalls();
         }
     }

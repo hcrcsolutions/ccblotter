@@ -6,10 +6,12 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,6 +22,20 @@ import java.util.Map;
 public class CallStateWriter {
 
     private static final Logger log = LoggerFactory.getLogger(CallStateWriter.class);
+
+    private static final DefaultRedisScript<Long> UPDATE_STATE_IF_EXISTS_SCRIPT;
+
+    static {
+        UPDATE_STATE_IF_EXISTS_SCRIPT = new DefaultRedisScript<>();
+        UPDATE_STATE_IF_EXISTS_SCRIPT.setScriptText(
+            "if redis.call('EXISTS', KEYS[1]) == 1 then " +
+            "  redis.call('HSET', KEYS[1], 'state', ARGV[1]) " +
+            "  return 1 " +
+            "end " +
+            "return 0"
+        );
+        UPDATE_STATE_IF_EXISTS_SCRIPT.setResultType(Long.class);
+    }
 
     private final StringRedisTemplate redisTemplate;
 
@@ -70,6 +86,19 @@ public class CallStateWriter {
 
     public void updateCallState(String callId, String newState) {
         redisTemplate.opsForHash().put(RedisKeySchema.callKey(callId), "state", newState);
+    }
+
+    /**
+     * Atomically checks call existence and updates state in a single Lua round-trip.
+     * @return true if the call existed and was updated, false if not found
+     */
+    public boolean updateCallStateIfExists(String callId, String newState) {
+        Long result = redisTemplate.execute(
+            UPDATE_STATE_IF_EXISTS_SCRIPT,
+            List.of(RedisKeySchema.callKey(callId)),
+            newState
+        );
+        return result != null && result == 1;
     }
 
     public boolean callExists(String callId) {

@@ -9,8 +9,10 @@ import org.springframework.data.redis.core.HashOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 
 import java.time.Instant;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -54,6 +56,32 @@ class CallStateWriterTest {
     void updateCallStateWritesToHash() {
         writer.updateCallState("call-1", "ON_HOLD");
         verify(hashOps).put("call:call-1", "state", "ON_HOLD");
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void updateCallStateIfExistsReturnsTrueWhenFound() {
+        doReturn(1L).when(redisTemplate).execute(
+            any(RedisScript.class), anyList(), any()
+        );
+
+        assertTrue(writer.updateCallStateIfExists("call-1", "ON_HOLD"));
+
+        verify(redisTemplate).execute(
+            any(RedisScript.class),
+            eq(List.of("call:call-1")),
+            eq("ON_HOLD")
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    void updateCallStateIfExistsReturnsFalseWhenNotFound() {
+        doReturn(0L).when(redisTemplate).execute(
+            any(RedisScript.class), anyList(), any()
+        );
+
+        assertFalse(writer.updateCallStateIfExists("unknown", "ON_HOLD"));
     }
 
     @Test

@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * Handles SIP call-control events from SIP servers.
@@ -111,9 +112,7 @@ public class SipEventHandler {
 
     private void handleAgentLoggedOut(EventEnvelope<?> envelope) {
         AgentLoggedOutPayload p = (AgentLoggedOutPayload) envelope.payload();
-        if (agentWriter.agentExists(p.agentId())) {
-            agentWriter.updateAgentState(p.agentId(), "UNAVAILABLE", null);
-        } else {
+        if (!agentWriter.updateAgentState(p.agentId(), "UNAVAILABLE", null)) {
             log.warn("AGENT_LOGGED_OUT for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "UNAVAILABLE", null);
         }
@@ -123,9 +122,7 @@ public class SipEventHandler {
 
     private void handleAgentBreakStarted(EventEnvelope<?> envelope) {
         AgentBreakStartedPayload p = (AgentBreakStartedPayload) envelope.payload();
-        if (agentWriter.agentExists(p.agentId())) {
-            agentWriter.updateAgentState(p.agentId(), "AWAY", null);
-        } else {
+        if (!agentWriter.updateAgentState(p.agentId(), "AWAY", null)) {
             log.warn("AGENT_BREAK_STARTED for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "AWAY", null);
         }
@@ -135,9 +132,7 @@ public class SipEventHandler {
 
     private void handleAgentBreakEnded(EventEnvelope<?> envelope) {
         AgentBreakEndedPayload p = (AgentBreakEndedPayload) envelope.payload();
-        if (agentWriter.agentExists(p.agentId())) {
-            agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
-        } else {
+        if (!agentWriter.updateAgentState(p.agentId(), "ONLINE", null)) {
             log.warn("AGENT_BREAK_ENDED for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "ONLINE", null);
         }
@@ -155,40 +150,37 @@ public class SipEventHandler {
     private void handleCallRoutedToAgent(EventEnvelope<?> envelope) {
         CallRoutedToAgentPayload p = (CallRoutedToAgentPayload) envelope.payload();
 
-        // 1. Ensure agent exists (create-on-reference if missing)
-        if (!agentWriter.agentExists(p.agentId())) {
+        // 1. Single HMGET: check existence + get state + get currentCallId (1 RT instead of 3)
+        List<String> snapshot = agentWriter.getAgentStateAndCallId(p.agentId());
+        String currentState = snapshot.get(0);
+        String existingCallId = snapshot.get(1);
+
+        // 2. Ensure agent exists (create-on-reference if missing)
+        if (currentState == null) {
             log.warn("CALL_ROUTED_TO_AGENT for unknown agent {} - creating on reference", p.agentId());
             agentWriter.saveAgent(p.agentId(), p.agentName(), "ONLINE", null);
         }
 
-        // 2. If agent is already ON_CALL, force-end their current call
-        String currentState = agentWriter.getAgentState(p.agentId());
-        if ("ON_CALL".equals(currentState)) {
-            String existingCallId = agentWriter.getAgentCurrentCallId(p.agentId());
-            if (existingCallId != null) {
-                log.warn("Agent {} already ON_CALL with call {} - force-ending", p.agentId(), existingCallId);
-                callWriter.removeCall(existingCallId);
-            }
+        // 3. If agent is already ON_CALL, force-end their current call
+        if ("ON_CALL".equals(currentState) && existingCallId != null) {
+            log.warn("Agent {} already ON_CALL with call {} - force-ending", p.agentId(), existingCallId);
+            callWriter.removeCall(existingCallId);
         }
 
-        // 3. Remove queued call (ignore if not found)
+        // 4. Remove queued call — idempotent, no exists check needed
         if (p.queuedCallId() != null) {
-            if (queueWriter.queuedCallExists(p.queuedCallId())) {
-                queueWriter.removeFromQueue(p.queuedCallId());
-            } else {
-                log.warn("Queue entry {} not found for routing - proceeding anyway", p.queuedCallId());
-            }
+            queueWriter.removeFromQueue(p.queuedCallId());
         }
 
-        // 4. Create Call record with event's callId
+        // 5. Create Call record with event's callId
         Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
         callWriter.saveCall(p.callId(), p.originator(), p.agentId(),
             p.agentName(), startTime, "TALKING");
 
-        // 5. Update agent to ON_CALL
+        // 6. Update agent to ON_CALL
         agentWriter.updateAgentState(p.agentId(), "ON_CALL", p.callId());
 
-        // 6. Broadcast
+        // 7. Broadcast
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastQueue();
@@ -198,29 +190,23 @@ public class SipEventHandler {
     private void handleCallEnded(EventEnvelope<?> envelope) {
         CallEndedPayload p = (CallEndedPayload) envelope.payload();
 
-        // 1. If call not found, create synthetic record and proceed
-        if (!callWriter.callExists(p.callId())) {
-            log.warn("CALL_ENDED for unknown call {} - creating synthetic record", p.callId());
-        }
+        // 1. Set agent to ONLINE — Lua returns whether agent existed (saves agentExists RT)
+        boolean agentUpdated = agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
 
-        // 2. Update agent last call info
-        Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
-        Instant endTime = Instant.ofEpochMilli(p.callEndTimeMs());
-
-        if (agentWriter.agentExists(p.agentId())) {
+        // 2. If agent existed, write last-call metadata
+        if (agentUpdated) {
+            Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
+            Instant endTime = Instant.ofEpochMilli(p.callEndTimeMs());
             agentWriter.updateLastCallInfo(p.agentId(), p.originator(),
                 startTime, endTime, p.durationSeconds());
-
-            // 3. Set agent to ONLINE
-            agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
         } else {
             log.warn("CALL_ENDED for unknown agent {} - skipping agent update", p.agentId());
         }
 
-        // 4. Remove call from Redis
+        // 3. Remove call from Redis — idempotent, no exists check needed
         callWriter.removeCall(p.callId());
 
-        // 5. Broadcast
+        // 4. Broadcast
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
@@ -229,11 +215,8 @@ public class SipEventHandler {
     private void handleCallAbandoned(EventEnvelope<?> envelope) {
         CallAbandonedPayload p = (CallAbandonedPayload) envelope.payload();
 
-        if (queueWriter.queuedCallExists(p.callId())) {
-            queueWriter.removeFromQueue(p.callId());
-        } else {
-            log.warn("CALL_ABANDONED for unknown queued call {}", p.callId());
-        }
+        // removeFromQueue is idempotent — no exists check needed
+        queueWriter.removeFromQueue(p.callId());
 
         broadcaster.broadcastQueue();
     }
@@ -241,9 +224,8 @@ public class SipEventHandler {
     private void handleCallHoldChanged(EventEnvelope<?> envelope) {
         CallHoldChangedPayload p = (CallHoldChangedPayload) envelope.payload();
 
-        if (callWriter.callExists(p.callId())) {
-            callWriter.updateCallState(p.callId(), p.newState());
-        } else {
+        // Lua: EXISTS + HSET in single round-trip
+        if (!callWriter.updateCallStateIfExists(p.callId(), p.newState())) {
             log.warn("CALL_HOLD_CHANGED for unknown call {}", p.callId());
         }
 

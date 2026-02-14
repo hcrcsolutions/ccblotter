@@ -91,10 +91,22 @@ public class WebSocketBroadcaster {
     public void broadcastSummary() {
         if (!shouldBroadcast("/topic/summary")) return;
 
-        int online = getSetSize(RedisKeySchema.agentsByState("ONLINE"));
-        int onCall = getSetSize(RedisKeySchema.agentsByState("ON_CALL"));
-        int away = getSetSize(RedisKeySchema.agentsByState("AWAY"));
-        int unavailable = getSetSize(RedisKeySchema.agentsByState("UNAVAILABLE"));
+        // Pipeline 4 SCARD calls into a single round-trip
+        List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                operations.opsForSet().size(RedisKeySchema.agentsByState("ONLINE"));
+                operations.opsForSet().size(RedisKeySchema.agentsByState("ON_CALL"));
+                operations.opsForSet().size(RedisKeySchema.agentsByState("AWAY"));
+                operations.opsForSet().size(RedisKeySchema.agentsByState("UNAVAILABLE"));
+                return null;
+            }
+        });
+
+        int online = toLong(results.get(0));
+        int onCall = toLong(results.get(1));
+        int away = toLong(results.get(2));
+        int unavailable = toLong(results.get(3));
 
         Map<String, Object> summary = Map.of(
             "online", online,
@@ -152,8 +164,7 @@ public class WebSocketBroadcaster {
         return true;
     }
 
-    private int getSetSize(String key) {
-        Long size = redisTemplate.opsForSet().size(key);
-        return size != null ? size.intValue() : 0;
+    private static int toLong(Object result) {
+        return result instanceof Long l ? l.intValue() : 0;
     }
 }

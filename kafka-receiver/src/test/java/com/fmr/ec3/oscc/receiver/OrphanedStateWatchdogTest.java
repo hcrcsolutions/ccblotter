@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.HashOperations;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -14,6 +15,7 @@ import org.springframework.data.redis.core.ValueOperations;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -79,9 +81,9 @@ class OrphanedStateWatchdogTest {
     void detectsOrphanedAgent() {
         acquireLock();
         when(setOps.members("agents:by-state:ON_CALL")).thenReturn(Set.of("AGT-0001"));
-        // Agent has been ON_CALL for 2 hours (> 60 min threshold)
         Instant twoHoursAgo = Instant.now().minus(2, ChronoUnit.HOURS);
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn(twoHoursAgo.toString());
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(twoHoursAgo.toString()));
 
         watchdog.checkOrphanedAgents();
 
@@ -92,9 +94,9 @@ class OrphanedStateWatchdogTest {
     void doesNotFlagRecentOnCallAgent() {
         acquireLock();
         when(setOps.members("agents:by-state:ON_CALL")).thenReturn(Set.of("AGT-0001"));
-        // Agent has been ON_CALL for 5 minutes (< 60 min threshold)
         Instant fiveMinAgo = Instant.now().minus(5, ChronoUnit.MINUTES);
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn(fiveMinAgo.toString());
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(fiveMinAgo.toString()));
 
         watchdog.checkOrphanedAgents();
 
@@ -110,9 +112,8 @@ class OrphanedStateWatchdogTest {
         Instant fiveMinAgo = Instant.now().minus(5, ChronoUnit.MINUTES);
         Instant threeHoursAgo = Instant.now().minus(3, ChronoUnit.HOURS);
 
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn(twoHoursAgo.toString());
-        when(hashOps.get("agent:AGT-0002", "stateChangedAt")).thenReturn(fiveMinAgo.toString());
-        when(hashOps.get("agent:AGT-0003", "stateChangedAt")).thenReturn(threeHoursAgo.toString());
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(twoHoursAgo.toString(), fiveMinAgo.toString(), threeHoursAgo.toString()));
 
         watchdog.checkOrphanedAgents();
 
@@ -123,7 +124,8 @@ class OrphanedStateWatchdogTest {
     void handlesNullStateChangedAt() {
         acquireLock();
         when(setOps.members("agents:by-state:ON_CALL")).thenReturn(Set.of("AGT-0001"));
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn(null);
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(java.util.Collections.singletonList(null));
 
         watchdog.checkOrphanedAgents();
 
@@ -134,11 +136,11 @@ class OrphanedStateWatchdogTest {
     void handlesMalformedTimestamp() {
         acquireLock();
         when(setOps.members("agents:by-state:ON_CALL")).thenReturn(Set.of("AGT-0001"));
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn("not-a-timestamp");
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of("not-a-timestamp"));
 
         watchdog.checkOrphanedAgents();
 
-        // Should not throw, just skip this agent
         assertEquals(0, watchdog.getOrphanedAgentCount());
     }
 
@@ -148,7 +150,8 @@ class OrphanedStateWatchdogTest {
         acquireLock();
         when(setOps.members("agents:by-state:ON_CALL")).thenReturn(Set.of("AGT-0001"));
         Instant twoHoursAgo = Instant.now().minus(2, ChronoUnit.HOURS);
-        when(hashOps.get("agent:AGT-0001", "stateChangedAt")).thenReturn(twoHoursAgo.toString());
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(twoHoursAgo.toString()));
 
         watchdog.checkOrphanedAgents();
         assertEquals(1, watchdog.getOrphanedAgentCount());

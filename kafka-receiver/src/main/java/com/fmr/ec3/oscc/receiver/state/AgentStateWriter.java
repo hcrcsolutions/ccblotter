@@ -87,7 +87,10 @@ public class AgentStateWriter {
         log.debug("Saved agent {} state={}", agentId, state);
     }
 
-    public void updateAgentState(String agentId, String newState, String callId) {
+    /**
+     * @return true if the agent existed and was updated, false if agent not found
+     */
+    public boolean updateAgentState(String agentId, String newState, String callId) {
         String key = RedisKeySchema.agentKey(agentId);
         String newStateSetKey = RedisKeySchema.agentsByState(newState);
 
@@ -103,10 +106,11 @@ public class AgentStateWriter {
 
         if (result == null || result == 0) {
             log.warn("Agent {} not found in Redis for state update", agentId);
-            return;
+            return false;
         }
 
         log.debug("Agent {} state -> {}", agentId, newState);
+        return true;
     }
 
     public void updateLastCallInfo(String agentId, String originator,
@@ -129,6 +133,16 @@ public class AgentStateWriter {
             RedisKeySchema.AGENTS_BY_STATE_PREFIX,
             agentId
         );
+    }
+
+    /**
+     * Returns [state, currentCallId] in a single HMGET round-trip.
+     * Both values are null if the agent does not exist.
+     */
+    public List<String> getAgentStateAndCallId(String agentId) {
+        List<Object> values = redisTemplate.opsForHash()
+            .multiGet(RedisKeySchema.agentKey(agentId), List.of("state", "currentCallId"));
+        return values.stream().map(v -> v != null ? v.toString() : null).toList();
     }
 
     public boolean agentExists(String agentId) {

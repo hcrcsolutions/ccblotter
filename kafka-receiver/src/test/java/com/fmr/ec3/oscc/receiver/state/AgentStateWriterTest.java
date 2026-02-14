@@ -44,14 +44,15 @@ class AgentStateWriterTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    void updateAgentStateUsesLuaScript() {
+    void updateAgentStateReturnsTrueWhenAgentExists() {
         doReturn(1L).when(redisTemplate).execute(
             any(RedisScript.class), anyList(),
             any(), any(), any(), any(), any()
         );
 
-        writer.updateAgentState("AGT-0001", "ON_CALL", "call-123");
+        boolean result = writer.updateAgentState("AGT-0001", "ON_CALL", "call-123");
 
+        assertTrue(result);
         verify(redisTemplate).execute(
             any(RedisScript.class),
             eq(List.of("agent:AGT-0001", "agents:by-state:ON_CALL")),
@@ -86,15 +87,15 @@ class AgentStateWriterTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    void updateAgentStateNoOpWhenAgentMissing() {
+    void updateAgentStateReturnsFalseWhenAgentMissing() {
         doReturn(0L).when(redisTemplate).execute(
             any(RedisScript.class), anyList(),
             any(), any(), any(), any(), any()
         );
 
-        writer.updateAgentState("AGT-9999", "ONLINE", null);
+        boolean result = writer.updateAgentState("AGT-9999", "ONLINE", null);
 
-        // Script returned 0 = agent not found, should just warn
+        assertFalse(result);
     }
 
     @Test
@@ -122,6 +123,28 @@ class AgentStateWriterTest {
             eq("agents:by-state:"),
             eq("AGT-0001")
         );
+    }
+
+    @Test
+    void getAgentStateAndCallIdReturnsBothFields() {
+        when(hashOps.multiGet("agent:AGT-0001", List.of("state", "currentCallId")))
+            .thenReturn(List.of("ON_CALL", "call-123"));
+
+        List<String> result = writer.getAgentStateAndCallId("AGT-0001");
+
+        assertEquals("ON_CALL", result.get(0));
+        assertEquals("call-123", result.get(1));
+    }
+
+    @Test
+    void getAgentStateAndCallIdReturnsNullsWhenMissing() {
+        when(hashOps.multiGet("agent:AGT-9999", List.of("state", "currentCallId")))
+            .thenReturn(java.util.Arrays.asList(null, null));
+
+        List<String> result = writer.getAgentStateAndCallId("AGT-9999");
+
+        assertNull(result.get(0));
+        assertNull(result.get(1));
     }
 
     @Test

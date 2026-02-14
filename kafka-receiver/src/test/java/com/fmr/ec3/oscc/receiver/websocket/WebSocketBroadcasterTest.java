@@ -76,13 +76,13 @@ class WebSocketBroadcasterTest {
     }
 
     @Test
-    void broadcastSummarySendsCountsByState() {
-        when(setOps.size("agents:by-state:ONLINE")).thenReturn(50L);
-        when(setOps.size("agents:by-state:ON_CALL")).thenReturn(200L);
-        when(setOps.size("agents:by-state:AWAY")).thenReturn(30L);
-        when(setOps.size("agents:by-state:UNAVAILABLE")).thenReturn(20L);
+    void broadcastSummaryUsesPipelineForCounts() {
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(50L, 200L, 30L, 20L));
 
         broadcaster.broadcastSummary();
+
+        verify(redisTemplate).executePipelined(any(SessionCallback.class));
 
         @SuppressWarnings("unchecked")
         var captor = org.mockito.ArgumentCaptor.forClass(Map.class);
