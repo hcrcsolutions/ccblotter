@@ -253,7 +253,8 @@ class SipEventHandlerTest {
     class CallEndedTests {
         @Test
         void happyPath() {
-            when(agentWriter.updateAgentState("AGT-0001", "ONLINE", null)).thenReturn(true);
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "call-1"));
 
             long start = 1700000000000L;
             long end = 1700000300000L;
@@ -269,7 +270,8 @@ class SipEventHandlerTest {
 
         @Test
         void removesCallIdempotently() {
-            when(agentWriter.updateAgentState("AGT-0001", "ONLINE", null)).thenReturn(true);
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "unknown-call"));
 
             var payload = new CallEndedPayload(
                 "unknown-call", "AGT-0001", "(212) 555-0100",
@@ -281,17 +283,36 @@ class SipEventHandlerTest {
         }
 
         @Test
-        void skipsLastCallInfoForUnknownAgent() {
-            when(agentWriter.updateAgentState("AGT-9999", "ONLINE", null)).thenReturn(false);
+        void skipsAgentUpdateForUnknownAgent() {
+            when(agentWriter.getAgentStateAndCallId("AGT-9999"))
+                .thenReturn(java.util.Arrays.asList(null, null));
 
             var payload = new CallEndedPayload(
                 "call-1", "AGT-9999", "(212) 555-0100",
                 1700000000000L, 1700000300000L, 300, "normal_clearing", "sip-1");
             handler.handle(envelope(EventType.CALL_ENDED, payload));
 
-            // updateAgentState returned false => skip last-call metadata
+            verify(agentWriter, never()).updateAgentState(anyString(), anyString(), any());
             verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong());
             verify(callWriter).removeCall("call-1");
+        }
+
+        @Test
+        void staleCallEndedDoesNotClobberCurrentCall() {
+            // Agent is on call-B, but a delayed CALL_ENDED for call-A arrives
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "call-B"));
+
+            var payload = new CallEndedPayload(
+                "call-A", "AGT-0001", "(212) 555-0100",
+                1700000000000L, 1700000300000L, 300, "normal_clearing", "sip-1");
+            handler.handle(envelope(EventType.CALL_ENDED, payload));
+
+            // Agent state must NOT be changed — they are still on call-B
+            verify(agentWriter, never()).updateAgentState(anyString(), anyString(), any());
+            verify(agentWriter, never()).updateLastCallInfo(anyString(), anyString(), any(), any(), anyLong());
+            // The stale call record is still removed
+            verify(callWriter).removeCall("call-A");
         }
     }
 

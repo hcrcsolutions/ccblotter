@@ -220,23 +220,32 @@ public class SipEventHandler {
     private void handleCallEnded(EventEnvelope<?> envelope) {
         CallEndedPayload p = (CallEndedPayload) envelope.payload();
 
-        // 1. Set agent to ONLINE — Lua returns whether agent existed (saves agentExists RT)
-        boolean agentUpdated = agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
+        // 1. Check that this CALL_ENDED matches the agent's current call.
+        //    A stale CALL_ENDED (e.g., after a force-end from CALL_ROUTED_TO_AGENT)
+        //    must NOT clobber the agent's state for their new active call.
+        List<String> snapshot = agentWriter.getAgentStateAndCallId(p.agentId());
+        String currentState = snapshot.get(0);
+        String currentCallId = snapshot.get(1);
 
-        // 2. If agent existed, write last-call metadata
-        if (agentUpdated) {
+        if (currentState != null && p.callId().equals(currentCallId)) {
+            // Agent's current call matches — transition to ONLINE
+            agentWriter.updateAgentState(p.agentId(), "ONLINE", null);
             Instant startTime = Instant.ofEpochMilli(p.callStartTimeMs());
             Instant endTime = Instant.ofEpochMilli(p.callEndTimeMs());
             agentWriter.updateLastCallInfo(p.agentId(), p.originator(),
                 startTime, endTime, p.durationSeconds());
+        } else if (currentState != null) {
+            // Agent exists but is on a different call — stale CALL_ENDED, skip agent update
+            log.warn("CALL_ENDED for call {} but agent {} has currentCallId={} - skipping agent state change",
+                p.callId(), p.agentId(), currentCallId);
         } else {
             log.warn("CALL_ENDED for unknown agent {} - skipping agent update", p.agentId());
         }
 
-        // 3. Remove call from Redis — idempotent, no exists check needed
+        // 2. Remove call from Redis — always, idempotent
         callWriter.removeCall(p.callId());
 
-        // 4. Broadcast
+        // 3. Broadcast
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
