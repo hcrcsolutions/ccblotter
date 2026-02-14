@@ -84,19 +84,22 @@ class InfraStateWriterTest {
     }
 
     @Test
-    void removeNodeStateUsesTransaction() {
+    void removeNodeStateLooksUpNodeType() {
+        when(hashOps.get("infra:node:sip-1:info", "nodeType")).thenReturn("SIP");
         when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
 
-        writer.removeNodeState("sip-1", "SIP");
+        writer.removeNodeState("sip-1");
 
+        verify(hashOps).get("infra:node:sip-1:info", "nodeType");
         verify(redisTemplate).execute(any(SessionCallback.class));
     }
 
     @Test
-    void removeNodeStateHandlesNullNodeType() {
+    void removeNodeStateHandlesMissingNodeType() {
+        when(hashOps.get("infra:node:sip-1:info", "nodeType")).thenReturn(null);
         when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
 
-        writer.removeNodeState("sip-1", null);
+        writer.removeNodeState("sip-1");
 
         verify(redisTemplate).execute(any(SessionCallback.class));
     }

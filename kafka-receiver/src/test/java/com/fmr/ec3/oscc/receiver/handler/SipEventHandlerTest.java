@@ -56,21 +56,36 @@ class SipEventHandlerTest {
     class AgentLoggedOutTests {
         @Test
         void updatesExistingAgentToUnavailable() {
-            when(agentWriter.updateAgentState("AGT-0001", "UNAVAILABLE", null)).thenReturn(true);
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
             var payload = new AgentLoggedOutPayload("AGT-0001", "end_of_shift", "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "UNAVAILABLE", null);
             verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
+            verify(callWriter, never()).removeCall(anyString());
         }
 
         @Test
         void createsUnknownAgentAsUnavailable() {
-            when(agentWriter.updateAgentState("AGT-9999", "UNAVAILABLE", null)).thenReturn(false);
+            when(agentWriter.getAgentStateAndCallId("AGT-9999"))
+                .thenReturn(java.util.Arrays.asList(null, null));
             var payload = new AgentLoggedOutPayload("AGT-9999", "end_of_shift", "sip-1");
             handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
 
             verify(agentWriter).saveAgent("AGT-9999", "Unknown", "UNAVAILABLE", null);
+        }
+
+        @Test
+        void removesOrphanedCallOnLogout() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "active-call-1"));
+            var payload = new AgentLoggedOutPayload("AGT-0001", "end_of_shift", "sip-1");
+            handler.handle(envelope(EventType.AGENT_LOGGED_OUT, payload));
+
+            verify(callWriter).removeCall("active-call-1");
+            verify(agentWriter).updateAgentState("AGT-0001", "UNAVAILABLE", null);
+            verify(broadcaster).broadcastCalls();
         }
     }
 
@@ -78,12 +93,14 @@ class SipEventHandlerTest {
     class AgentBreakTests {
         @Test
         void breakStartedSetsAway() {
-            when(agentWriter.updateAgentState("AGT-0001", "AWAY", null)).thenReturn(true);
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ONLINE", ""));
             var payload = new AgentBreakStartedPayload("AGT-0001", "Lunch", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
             verify(agentWriter).updateAgentState("AGT-0001", "AWAY", null);
             verify(agentWriter, never()).saveAgent(anyString(), anyString(), anyString(), any());
+            verify(callWriter, never()).removeCall(anyString());
         }
 
         @Test
@@ -98,11 +115,24 @@ class SipEventHandlerTest {
 
         @Test
         void breakStartedCreatesUnknownAgent() {
-            when(agentWriter.updateAgentState("AGT-9999", "AWAY", null)).thenReturn(false);
+            when(agentWriter.getAgentStateAndCallId("AGT-9999"))
+                .thenReturn(java.util.Arrays.asList(null, null));
             var payload = new AgentBreakStartedPayload("AGT-9999", "Lunch", "sip-1");
             handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
 
             verify(agentWriter).saveAgent("AGT-9999", "Unknown", "AWAY", null);
+        }
+
+        @Test
+        void removesOrphanedCallOnBreakStarted() {
+            when(agentWriter.getAgentStateAndCallId("AGT-0001"))
+                .thenReturn(List.of("ON_CALL", "active-call-2"));
+            var payload = new AgentBreakStartedPayload("AGT-0001", "Lunch", "sip-1");
+            handler.handle(envelope(EventType.AGENT_BREAK_STARTED, payload));
+
+            verify(callWriter).removeCall("active-call-2");
+            verify(agentWriter).updateAgentState("AGT-0001", "AWAY", null);
+            verify(broadcaster).broadcastCalls();
         }
     }
 

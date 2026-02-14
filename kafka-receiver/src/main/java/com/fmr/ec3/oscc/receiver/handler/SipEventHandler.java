@@ -112,21 +112,51 @@ public class SipEventHandler {
 
     private void handleAgentLoggedOut(EventEnvelope<?> envelope) {
         AgentLoggedOutPayload p = (AgentLoggedOutPayload) envelope.payload();
-        if (!agentWriter.updateAgentState(p.agentId(), "UNAVAILABLE", null)) {
+
+        // Check if agent has an active call that needs cleanup
+        List<String> snapshot = agentWriter.getAgentStateAndCallId(p.agentId());
+        String currentState = snapshot.get(0);
+        String existingCallId = snapshot.get(1);
+
+        if ("ON_CALL".equals(currentState) && existingCallId != null) {
+            log.warn("Agent {} logged out while ON_CALL with call {} - removing orphaned call",
+                p.agentId(), existingCallId);
+            callWriter.removeCall(existingCallId);
+        }
+
+        if (currentState != null) {
+            agentWriter.updateAgentState(p.agentId(), "UNAVAILABLE", null);
+        } else {
             log.warn("AGENT_LOGGED_OUT for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "UNAVAILABLE", null);
         }
         broadcaster.broadcastAgents();
+        broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
     }
 
     private void handleAgentBreakStarted(EventEnvelope<?> envelope) {
         AgentBreakStartedPayload p = (AgentBreakStartedPayload) envelope.payload();
-        if (!agentWriter.updateAgentState(p.agentId(), "AWAY", null)) {
+
+        // Check if agent has an active call that needs cleanup
+        List<String> snapshot = agentWriter.getAgentStateAndCallId(p.agentId());
+        String currentState = snapshot.get(0);
+        String existingCallId = snapshot.get(1);
+
+        if ("ON_CALL".equals(currentState) && existingCallId != null) {
+            log.warn("Agent {} went on break while ON_CALL with call {} - removing orphaned call",
+                p.agentId(), existingCallId);
+            callWriter.removeCall(existingCallId);
+        }
+
+        if (currentState != null) {
+            agentWriter.updateAgentState(p.agentId(), "AWAY", null);
+        } else {
             log.warn("AGENT_BREAK_STARTED for unknown agent {}", p.agentId());
             agentWriter.saveAgent(p.agentId(), "Unknown", "AWAY", null);
         }
         broadcaster.broadcastAgents();
+        broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();
     }
 

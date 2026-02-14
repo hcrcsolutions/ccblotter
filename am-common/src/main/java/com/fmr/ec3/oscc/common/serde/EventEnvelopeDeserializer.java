@@ -46,7 +46,11 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
         }
         try {
             JsonNode tree = objectMapper.readTree(data);
-            String eventType = tree.get("eventType").asText();
+            JsonNode eventTypeNode = tree.get("eventType");
+            if (eventTypeNode == null) {
+                throw new IllegalArgumentException("EventEnvelope missing required 'eventType' field");
+            }
+            String eventType = eventTypeNode.asText();
             Class<?> payloadClass = PAYLOAD_TYPES.getOrDefault(eventType, Object.class);
 
             JavaType envelopeType = objectMapper.getTypeFactory()

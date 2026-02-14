@@ -148,12 +148,15 @@ public class InfraStateWriter {
         redisTemplate.opsForValue().set(RedisKeySchema.TOPOLOGY_VERSION, Instant.now().toString());
     }
 
-    public void removeNodeState(String nodeId, String nodeType) {
+    public void removeNodeState(String nodeId) {
         String infoKey = RedisKeySchema.nodeInfo(nodeId);
         String heartbeatKey = RedisKeySchema.nodeHeartbeat(nodeId);
         String metricsKey = RedisKeySchema.nodeMetrics(nodeId);
         String sessionsKey = RedisKeySchema.nodeSessions(nodeId);
         String trendsKey = RedisKeySchema.nodeTrends(nodeId);
+
+        // Look up nodeType before deleting so we can clean up the by-type set
+        Object nodeType = redisTemplate.opsForHash().get(infoKey, "nodeType");
 
         redisTemplate.execute(new SessionCallback<>() {
             @Override
@@ -167,7 +170,8 @@ public class InfraStateWriter {
                 operations.delete(trendsKey);
                 operations.opsForSet().remove(RedisKeySchema.INFRA_NODES_ALL, nodeId);
                 if (nodeType != null) {
-                    operations.opsForSet().remove(RedisKeySchema.infraNodesByType(nodeType), nodeId);
+                    operations.opsForSet().remove(
+                        RedisKeySchema.infraNodesByType(nodeType.toString()), nodeId);
                 }
                 return operations.exec();
             }

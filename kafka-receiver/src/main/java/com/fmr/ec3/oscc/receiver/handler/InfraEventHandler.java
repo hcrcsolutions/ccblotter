@@ -106,7 +106,7 @@ public class InfraEventHandler {
 
     private void handleNodeDeregistered(EventEnvelope<?> envelope) {
         NodeDeregisteredPayload p = (NodeDeregisteredPayload) envelope.payload();
-        infraWriter.removeNodeState(p.nodeId(), null);
+        infraWriter.removeNodeState(p.nodeId());
         infraWriter.updateTopologyVersion();
         broadcaster.broadcastInfrastructure();
         log.info("Node {} deregistered: {}", p.nodeId(), p.reason());

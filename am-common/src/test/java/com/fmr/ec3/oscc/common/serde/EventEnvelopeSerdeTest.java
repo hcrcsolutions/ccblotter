@@ -233,6 +233,14 @@ class EventEnvelopeSerdeTest {
     }
 
     @Test
+    void deserializeMissingEventTypeThrows() {
+        byte[] json = "{\"eventId\":\"evt-1\",\"payload\":{}}".getBytes();
+        var ex = assertThrows(RuntimeException.class,
+            () -> deserializer.deserialize("topic", json));
+        assertTrue(ex.getCause().getMessage().contains("eventType"));
+    }
+
+    @Test
     void unknownEventTypeDeserializesToObjectPayload() {
         var envelope = new EventEnvelope<>(
             "evt-1", 1L, "src", "corr", "key",

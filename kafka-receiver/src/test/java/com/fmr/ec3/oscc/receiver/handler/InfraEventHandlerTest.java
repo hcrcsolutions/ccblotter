@@ -49,7 +49,7 @@ class InfraEventHandlerTest {
 
         handler.handleLifecycle(envelope(EventType.NODE_DEREGISTERED, payload));
 
-        verify(infraWriter).removeNodeState("media-5", null);
+        verify(infraWriter).removeNodeState("media-5");
         verify(infraWriter).updateTopologyVersion();
         verify(broadcaster).broadcastInfrastructure();
     }
