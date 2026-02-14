@@ -26,7 +26,8 @@ public class InfraHeartbeatListener {
         this.handler = handler;
     }
 
-    @KafkaListener(topics = KafkaTopics.INFRA_HEARTBEATS, groupId = "kafka-receiver")
+    @KafkaListener(topics = KafkaTopics.INFRA_HEARTBEATS, groupId = "kafka-receiver",
+            containerFactory = "osccKafkaListenerContainerFactory")
     public void onHeartbeat(@Payload EventEnvelope<?> envelope,
                              @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                              Acknowledgment ack) {

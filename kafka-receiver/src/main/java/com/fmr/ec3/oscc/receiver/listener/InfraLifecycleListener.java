@@ -26,7 +26,8 @@ public class InfraLifecycleListener {
         this.handler = handler;
     }
 
-    @KafkaListener(topics = KafkaTopics.INFRA_LIFECYCLE, groupId = "kafka-receiver")
+    @KafkaListener(topics = KafkaTopics.INFRA_LIFECYCLE, groupId = "kafka-receiver",
+            containerFactory = "osccKafkaListenerContainerFactory")
     public void onLifecycleEvent(@Payload EventEnvelope<?> envelope,
                                   @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                                   Acknowledgment ack) {

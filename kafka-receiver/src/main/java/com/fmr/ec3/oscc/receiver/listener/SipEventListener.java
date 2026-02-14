@@ -26,7 +26,8 @@ public class SipEventListener {
         this.handler = handler;
     }
 
-    @KafkaListener(topics = KafkaTopics.SIP_EVENTS, groupId = "kafka-receiver")
+    @KafkaListener(topics = KafkaTopics.SIP_EVENTS, groupId = "kafka-receiver",
+            containerFactory = "osccKafkaListenerContainerFactory")
     public void onSipEvent(@Payload EventEnvelope<?> envelope,
                             @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
                             Acknowledgment ack) {

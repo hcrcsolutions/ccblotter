@@ -28,7 +28,7 @@ public class KafkaConsumerConfig {
     private String bootstrapServers;
 
     @Bean
-    public ConsumerFactory<String, EventEnvelope<?>> consumerFactory() {
+    public ConsumerFactory<String, EventEnvelope<?>> osccConsumerFactory() {
         return new DefaultKafkaConsumerFactory<>(Map.of(
             ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
             ConsumerConfig.GROUP_ID_CONFIG, "kafka-receiver",
@@ -40,12 +40,13 @@ public class KafkaConsumerConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>>
+            osccKafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
-        factory.setConsumerFactory(consumerFactory());
+        factory.setConsumerFactory(osccConsumerFactory());
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
-        factory.setCommonErrorHandler(kafkaErrorHandler());
+        factory.setCommonErrorHandler(osccKafkaErrorHandler());
         return factory;
     }
 
@@ -56,7 +57,7 @@ public class KafkaConsumerConfig {
      * partition is never permanently blocked by a poison-pill message.
      */
     @Bean
-    public DefaultErrorHandler kafkaErrorHandler() {
+    public DefaultErrorHandler osccKafkaErrorHandler() {
         DefaultErrorHandler errorHandler = new DefaultErrorHandler(
             (record, ex) -> log.error(
                 "Skipping record after retries exhausted: topic={} partition={} offset={} key={}",
