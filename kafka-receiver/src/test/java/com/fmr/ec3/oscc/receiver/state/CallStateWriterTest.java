@@ -52,12 +52,6 @@ class CallStateWriterTest {
         verify(redisTemplate).execute(any(SessionCallback.class));
     }
 
-    @Test
-    void updateCallStateWritesToHash() {
-        writer.updateCallState("call-1", "ON_HOLD");
-        verify(hashOps).put("call:call-1", "state", "ON_HOLD");
-    }
-
     @SuppressWarnings("unchecked")
     @Test
     void updateCallStateIfExistsReturnsTrueWhenFound() {

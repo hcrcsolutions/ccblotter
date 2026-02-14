@@ -120,6 +120,9 @@ public class SipEventHandler {
         }
 
         agentWriter.saveAgent(p.agentId(), p.agentName(), "ONLINE", null);
+        if (p.skills() != null && !p.skills().isEmpty()) {
+            agentWriter.setAgentField(p.agentId(), "skills", String.join(",", p.skills()));
+        }
         broadcaster.broadcastAgents();
         broadcaster.broadcastCalls();
         broadcaster.broadcastSummary();

@@ -87,10 +87,6 @@ public class CallStateWriter {
         log.debug("Removed call {}", callId);
     }
 
-    public void updateCallState(String callId, String newState) {
-        redisTemplate.opsForHash().put(RedisKeySchema.callKey(callId), "state", newState);
-    }
-
     /**
      * Atomically checks call existence and updates state in a single Lua round-trip.
      * @return true if the call existed and was updated, false if not found
