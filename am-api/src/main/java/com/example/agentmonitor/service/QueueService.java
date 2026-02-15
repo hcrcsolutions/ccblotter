@@ -96,6 +96,7 @@ public class QueueService {
                 .build();
 
         Map<String, Object> callMap = objectMapper.convertValue(call, Map.class);
+        callMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(QUEUE_CALL_PREFIX + callId, callMap);
         redisTemplate.opsForSet().add(QUEUE_CALLS_KEY, callId);
 

@@ -142,6 +142,7 @@ public class AgentService {
 
         // Save to Redis
         Map<String, Object> agentMap = objectMapper.convertValue(agent, Map.class);
+        agentMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(AGENT_KEY_PREFIX + agentId, agentMap);
 
         // Add to new state set
@@ -172,6 +173,7 @@ public class AgentService {
         agent.setLastCallDurationSeconds(durationSeconds);
 
         Map<String, Object> agentMap = objectMapper.convertValue(agent, Map.class);
+        agentMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(AGENT_KEY_PREFIX + agentId, agentMap);
 
         log.debug("Updated last call info for agent {}: {} ({}s)", agentId, originator, durationSeconds);
@@ -196,6 +198,7 @@ public class AgentService {
         }
 
         Map<String, Object> agentMap = objectMapper.convertValue(agent, Map.class);
+        agentMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(AGENT_KEY_PREFIX + agent.getId(), agentMap);
         redisTemplate.opsForSet().add(AGENTS_ALL_KEY, agent.getId());
         redisTemplate.opsForSet().add(AGENTS_BY_STATE_PREFIX + agent.getState().name(), agent.getId());

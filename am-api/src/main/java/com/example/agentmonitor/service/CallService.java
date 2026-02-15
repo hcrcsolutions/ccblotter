@@ -119,6 +119,7 @@ public class CallService {
 
         // Save call to Redis
         Map<String, Object> callMap = objectMapper.convertValue(call, Map.class);
+        callMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
         redisTemplate.opsForSet().add(ACTIVE_CALLS_KEY, callId);
 
@@ -210,6 +211,7 @@ public class CallService {
         call.setState(newState);
 
         Map<String, Object> callMap = objectMapper.convertValue(call, Map.class);
+        callMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
 
         log.info("Call {} state changed to {}", callId, newState);
@@ -249,6 +251,7 @@ public class CallService {
         call.setStartTime(newStartTime);
 
         Map<String, Object> callMap = objectMapper.convertValue(call, Map.class);
+        callMap.replaceAll((k, v) -> v != null ? v.toString() : v);
         redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
 
         log.debug("Updated call {} start time to {}", callId, newStartTime);
