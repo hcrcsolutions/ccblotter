@@ -9,7 +9,6 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -25,7 +24,6 @@ import java.util.concurrent.atomic.AtomicLong;
  * Does NOT auto-fix by default.
  * Uses Redis-based leader election so only one pod runs the check.
  */
-@Component
 public class OrphanedStateWatchdog {
 
     private static final Logger log = LoggerFactory.getLogger(OrphanedStateWatchdog.class);

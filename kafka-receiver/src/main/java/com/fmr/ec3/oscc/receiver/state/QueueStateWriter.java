@@ -6,7 +6,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -16,7 +15,6 @@ import java.util.Map;
  * Writes queue state to Redis matching am-api's QueueService schema exactly.
  * Keys: queue:call:{id}, queue:calls
  */
-@Component
 public class QueueStateWriter {
 
     private static final Logger log = LoggerFactory.getLogger(QueueStateWriter.class);

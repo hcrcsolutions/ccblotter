@@ -9,8 +9,6 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.stereotype.Component;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -23,7 +21,6 @@ import java.util.function.Function;
  * All Redis reads and WebSocket sends run on a dedicated broadcast thread
  * so the Kafka consumer thread is never blocked.
  */
-@Component
 public class WebSocketBroadcaster {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketBroadcaster.class);
@@ -96,7 +93,7 @@ public class WebSocketBroadcaster {
             Map<String, Object> payload = new HashMap<>();
             payload.put("calls", calls);
             payload.put("stats", Map.of("queuedCount", calls.size()));
-            messagingTemplate.convertAndSend("/topic/queue", payload);
+            messagingTemplate.convertAndSend("/topic/queue", (Object) payload);
         });
     }
 
@@ -125,7 +122,7 @@ public class WebSocketBroadcaster {
                 "unavailable", unavailable,
                 "total", online + onCall + away + unavailable
             );
-            messagingTemplate.convertAndSend("/topic/summary", summary);
+            messagingTemplate.convertAndSend("/topic/summary", (Object) summary);
         });
     }
 

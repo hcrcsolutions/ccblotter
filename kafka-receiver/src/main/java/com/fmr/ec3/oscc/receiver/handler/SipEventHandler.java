@@ -9,7 +9,6 @@ import com.fmr.ec3.oscc.receiver.state.QueueStateWriter;
 import com.fmr.ec3.oscc.receiver.websocket.WebSocketBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.List;
@@ -71,7 +70,6 @@ import java.util.Set;
  *
  * All payloads include sipServerId = the nodeId of the SIP server producing the event.
  */
-@Component
 public class SipEventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SipEventHandler.class);

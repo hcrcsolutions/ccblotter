@@ -13,7 +13,6 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -26,7 +25,6 @@ import java.util.Map;
  *        infra:node:{id}:sessions, infra:node:{id}:trends,
  *        infra:node:{id}:info, infra:nodes:all, infra:nodes:by-type:{type}
  */
-@Component
 public class InfraStateWriter {
 
     private static final Logger log = LoggerFactory.getLogger(InfraStateWriter.class);

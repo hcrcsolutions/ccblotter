@@ -1,12 +1,15 @@
 package com.fmr.ec3.oscc.receiver.config;
 
-import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 
-@Configuration
+/**
+ * WebSocket config for standalone kafka-receiver mode only.
+ * Not {@code @Configuration} — must be explicitly {@code @Import}ed.
+ * Host applications provide their own WebSocket configuration.
+ */
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 

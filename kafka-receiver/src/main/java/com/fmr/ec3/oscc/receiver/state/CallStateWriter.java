@@ -7,7 +7,6 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.script.DefaultRedisScript;
-import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -18,7 +17,6 @@ import java.util.Map;
  * Writes call state to Redis matching am-api's CallService schema exactly.
  * Keys: call:{id}, calls:active
  */
-@Component
 public class CallStateWriter {
 
     private static final Logger log = LoggerFactory.getLogger(CallStateWriter.class);

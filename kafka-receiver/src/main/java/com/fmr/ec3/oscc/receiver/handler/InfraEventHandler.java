@@ -10,7 +10,6 @@ import com.fmr.ec3.oscc.receiver.state.InfraStateWriter;
 import com.fmr.ec3.oscc.receiver.websocket.WebSocketBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 /**
  * Handles infrastructure lifecycle and heartbeat events from both SIP servers and Media servers.
@@ -70,7 +69,6 @@ import org.springframework.stereotype.Component;
  *       the key expires and the node appears offline.</li>
  * </ul>
  */
-@Component
 public class InfraEventHandler {
 
     private static final Logger log = LoggerFactory.getLogger(InfraEventHandler.class);

@@ -11,9 +11,7 @@ import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.kafka.support.KafkaHeaders;
 import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.stereotype.Component;
 
-@Component
 public class InfraLifecycleListener {
 
     private static final Logger log = LoggerFactory.getLogger(InfraLifecycleListener.class);

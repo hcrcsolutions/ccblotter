@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
-@Configuration
+/**
+ * ObjectMapper config for standalone kafka-receiver mode only.
+ * Not {@code @Configuration} — must be explicitly {@code @Import}ed.
+ * Host applications provide their own ObjectMapper bean.
+ */
 public class RedisConfig {
 
     @Bean
