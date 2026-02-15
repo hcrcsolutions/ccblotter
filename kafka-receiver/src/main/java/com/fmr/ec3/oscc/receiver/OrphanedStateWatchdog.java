@@ -83,7 +83,7 @@ public class OrphanedStateWatchdog {
                             agentIdList.get(i), changedAt, thresholdMinutes);
                     }
                 } catch (Exception e) {
-                    log.debug("Could not parse stateChangedAt for agent {}: {}",
+                    log.warn("Could not parse stateChangedAt for agent {}: {}",
                         agentIdList.get(i), e.getMessage());
                 }
             }

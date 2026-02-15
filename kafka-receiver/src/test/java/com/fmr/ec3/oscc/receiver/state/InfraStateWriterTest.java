@@ -16,6 +16,9 @@ import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StreamOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
@@ -85,14 +88,23 @@ class InfraStateWriterTest {
     }
 
     @Test
-    void removeNodeStateLooksUpNodeType() {
-        when(hashOps.get("infra:node:sip-1:info", "nodeType")).thenReturn("SIP");
-        when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
-
+    void removeNodeStateUsesLuaScript() {
         writer.removeNodeState("sip-1");
 
-        verify(hashOps).get("infra:node:sip-1:info", "nodeType");
-        verify(redisTemplate).execute(any(SessionCallback.class));
+        verify(redisTemplate).execute(
+            any(DefaultRedisScript.class),
+            eq(List.of(
+                "infra:node:sip-1:info",
+                "infra:node:sip-1:heartbeat",
+                "infra:node:sip-1:metrics",
+                "infra:node:sip-1:sessions",
+                "infra:node:sip-1:trends",
+                "infra:node:sip-1:alarm",
+                "infra:nodes:all"
+            )),
+            eq("sip-1"),
+            eq("infra:nodes:by-type:")
+        );
     }
 
     @Test
@@ -126,11 +138,10 @@ class InfraStateWriterTest {
 
     @Test
     void removeNodeStateHandlesMissingNodeType() {
-        when(hashOps.get("infra:node:sip-1:info", "nodeType")).thenReturn(null);
-        when(redisTemplate.execute(any(SessionCallback.class))).thenReturn(null);
-
+        // Lua script handles missing nodeType internally — just verify it runs
         writer.removeNodeState("sip-1");
 
-        verify(redisTemplate).execute(any(SessionCallback.class));
+        verify(redisTemplate).execute(
+            any(DefaultRedisScript.class), anyList(), any(Object[].class));
     }
 }

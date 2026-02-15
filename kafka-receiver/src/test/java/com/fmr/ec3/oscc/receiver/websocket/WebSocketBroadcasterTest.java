@@ -12,6 +12,7 @@ import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -153,6 +154,28 @@ class WebSocketBroadcasterTest {
         broadcaster.broadcastAgents();
 
         verify(messagingTemplate).convertAndSend(eq("/topic/agents"), anyList());
+    }
+
+    @Test
+    void broadcastSummarySkipsBroadcastOnPipelineSizeMismatch() {
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(50L, 200L)); // Only 2 results instead of 4
+
+        broadcaster.broadcastSummary();
+
+        verify(messagingTemplate, never()).convertAndSend(eq("/topic/summary"), any(Object.class));
+    }
+
+    @Test
+    void broadcastInfrastructureSendsEmptyListOnPipelineSizeMismatch() {
+        when(setOps.members("infra:nodes:all")).thenReturn(Set.of("sip-1"));
+        when(redisTemplate.executePipelined(any(SessionCallback.class)))
+            .thenReturn(List.of(Map.of("nodeId", "sip-1"))); // 1 result instead of 3
+
+        broadcaster.broadcastInfrastructure();
+
+        verify(messagingTemplate).convertAndSend(eq("/topic/infrastructure"),
+            eq(Collections.emptyList()));
     }
 
     @Test

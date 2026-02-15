@@ -9,6 +9,7 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
@@ -110,10 +111,16 @@ public class WebSocketBroadcaster {
                 }
             });
 
-            int online = toLong(results.get(0));
-            int onCall = toLong(results.get(1));
-            int away = toLong(results.get(2));
-            int unavailable = toLong(results.get(3));
+            if (results.size() != 4) {
+                log.error("Summary pipeline returned {} results (expected 4) - skipping broadcast",
+                    results.size());
+                return;
+            }
+
+            int online = toInt(results.get(0));
+            int onCall = toInt(results.get(1));
+            int away = toInt(results.get(2));
+            int unavailable = toInt(results.get(3));
 
             Map<String, Object> summary = Map.of(
                 "online", online,
@@ -147,6 +154,14 @@ public class WebSocketBroadcaster {
                     return null;
                 }
             });
+
+            int expectedSize = idList.size() * 3;
+            if (results.size() != expectedSize) {
+                log.error("Infrastructure pipeline returned {} results (expected {}) - sending empty list",
+                    results.size(), expectedSize);
+                messagingTemplate.convertAndSend("/topic/infrastructure", Collections.emptyList());
+                return;
+            }
 
             List<Map<String, Object>> nodes = new ArrayList<>(idList.size());
             for (int i = 0; i < idList.size(); i++) {
@@ -233,7 +248,7 @@ public class WebSocketBroadcaster {
         return true;
     }
 
-    private static int toLong(Object result) {
+    private static int toInt(Object result) {
         return result instanceof Long l ? l.intValue() : 0;
     }
 }

@@ -38,7 +38,7 @@ public final class RedisKeySchema {
 
     // Infrastructure keys (matching am-api RedisKeys)
     private static final String INFRA_NODE_PREFIX = "infra:node:";
-    private static final String INFRA_NODES_BY_TYPE_PREFIX = "infra:nodes:by-type:";
+    public static final String INFRA_NODES_BY_TYPE_PREFIX = "infra:nodes:by-type:";
 
     public static String nodeInfo(String nodeId) {
         return INFRA_NODE_PREFIX + nodeId + ":info";

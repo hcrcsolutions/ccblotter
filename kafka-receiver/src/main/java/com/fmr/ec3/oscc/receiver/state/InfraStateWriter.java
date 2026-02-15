@@ -13,10 +13,12 @@ import org.springframework.data.redis.connection.stream.StreamRecords;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -30,6 +32,25 @@ public class InfraStateWriter {
     private static final Logger log = LoggerFactory.getLogger(InfraStateWriter.class);
     private static final Duration HEARTBEAT_TTL = Duration.ofSeconds(90);
     private static final int MAX_TREND_ENTRIES = 60;
+
+    private static final DefaultRedisScript<Long> REMOVE_NODE_SCRIPT;
+
+    static {
+        // Lua script for removeNodeState: atomically reads nodeType, deletes all keys,
+        // and cleans up both index sets — avoids TOCTOU race on nodeType lookup.
+        // KEYS[1]=infoKey, KEYS[2]=heartbeatKey, KEYS[3]=metricsKey,
+        // KEYS[4]=sessionsKey, KEYS[5]=trendsKey, KEYS[6]=alarmKey, KEYS[7]=INFRA_NODES_ALL
+        // ARGV[1]=nodeId, ARGV[2]=INFRA_NODES_BY_TYPE_PREFIX
+        REMOVE_NODE_SCRIPT = new DefaultRedisScript<>();
+        REMOVE_NODE_SCRIPT.setScriptText(
+            "local nodeType = redis.call('HGET', KEYS[1], 'nodeType') " +
+            "redis.call('DEL', KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6]) " +
+            "redis.call('SREM', KEYS[7], ARGV[1]) " +
+            "if nodeType then redis.call('SREM', ARGV[2] .. nodeType, ARGV[1]) end " +
+            "return 1"
+        );
+        REMOVE_NODE_SCRIPT.setResultType(Long.class);
+    }
 
     private final StringRedisTemplate redisTemplate;
 
@@ -170,34 +191,19 @@ public class InfraStateWriter {
     }
 
     public void removeNodeState(String nodeId) {
-        String infoKey = RedisKeySchema.nodeInfo(nodeId);
-        String heartbeatKey = RedisKeySchema.nodeHeartbeat(nodeId);
-        String metricsKey = RedisKeySchema.nodeMetrics(nodeId);
-        String sessionsKey = RedisKeySchema.nodeSessions(nodeId);
-        String trendsKey = RedisKeySchema.nodeTrends(nodeId);
-        String alarmKey = RedisKeySchema.nodeAlarm(nodeId);
-
-        // Look up nodeType before deleting so we can clean up the by-type set
-        Object nodeType = redisTemplate.opsForHash().get(infoKey, "nodeType");
-
-        redisTemplate.execute(new SessionCallback<>() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Object execute(RedisOperations operations) throws DataAccessException {
-                operations.multi();
-                operations.delete(infoKey);
-                operations.delete(heartbeatKey);
-                operations.delete(metricsKey);
-                operations.delete(sessionsKey);
-                operations.delete(trendsKey);
-                operations.delete(alarmKey);
-                operations.opsForSet().remove(RedisKeySchema.INFRA_NODES_ALL, nodeId);
-                if (nodeType != null) {
-                    operations.opsForSet().remove(
-                        RedisKeySchema.infraNodesByType(nodeType.toString()), nodeId);
-                }
-                return operations.exec();
-            }
-        });
+        redisTemplate.execute(
+            REMOVE_NODE_SCRIPT,
+            List.of(
+                RedisKeySchema.nodeInfo(nodeId),
+                RedisKeySchema.nodeHeartbeat(nodeId),
+                RedisKeySchema.nodeMetrics(nodeId),
+                RedisKeySchema.nodeSessions(nodeId),
+                RedisKeySchema.nodeTrends(nodeId),
+                RedisKeySchema.nodeAlarm(nodeId),
+                RedisKeySchema.INFRA_NODES_ALL
+            ),
+            nodeId,
+            RedisKeySchema.INFRA_NODES_BY_TYPE_PREFIX
+        );
     }
 }
