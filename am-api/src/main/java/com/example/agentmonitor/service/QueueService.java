@@ -5,7 +5,10 @@ import com.example.agentmonitor.model.QueuedCall;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -33,19 +36,37 @@ public class QueueService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Get all queued calls, sorted by priority and wait time.
+     * Get all queued calls using pipelined batch reads, sorted by priority and wait time.
      */
+    @SuppressWarnings("unchecked")
     public List<QueuedCall> getQueuedCalls() {
         ensureRedisAvailable();
 
-        List<QueuedCall> calls = new ArrayList<>();
         Set<Object> callIds = redisTemplate.opsForSet().members(QUEUE_CALLS_KEY);
+        if (callIds == null || callIds.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-        if (callIds != null) {
-            for (Object id : callIds) {
-                QueuedCall call = getQueuedCall(id.toString());
-                if (call != null) {
-                    calls.add(call);
+        List<String> idList = callIds.stream().map(Object::toString).toList();
+
+        List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                for (String id : idList) {
+                    operations.opsForHash().entries(QUEUE_CALL_PREFIX + id);
+                }
+                return null;
+            }
+        });
+
+        List<QueuedCall> calls = new ArrayList<>(idList.size());
+        for (Object result : results) {
+            Map<Object, Object> data = (Map<Object, Object>) result;
+            if (data != null && !data.isEmpty()) {
+                try {
+                    calls.add(objectMapper.convertValue(data, QueuedCall.class));
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize queued call: {}", e.getMessage());
                 }
             }
         }
@@ -103,9 +124,6 @@ public class QueueService {
         log.info("Added call {} to queue from {} (skill: {}, priority: {})",
                 callId, originator, skill, priority);
 
-        if (broadcast) {
-            broadcastQueue();
-        }
         return call;
     }
 
@@ -120,7 +138,6 @@ public class QueueService {
             redisTemplate.delete(QUEUE_CALL_PREFIX + callId);
             redisTemplate.opsForSet().remove(QUEUE_CALLS_KEY, callId);
             log.info("Removed call {} from queue", callId);
-            broadcastQueue();
         }
         return call;
     }
@@ -191,7 +208,6 @@ public class QueueService {
         redisTemplate.delete(QUEUE_CALLS_KEY);
 
         log.info("Cleared all queued calls");
-        broadcastQueue();
     }
 
     /**

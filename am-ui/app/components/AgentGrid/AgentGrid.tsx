@@ -8,15 +8,20 @@ import Box from '@mui/material/Box';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
-import type { Agent, Call, AgentState } from '../../types';
+import type { AgentRow, AgentState } from '../../types';
 import '../../lib/agGridSetup';
 import { AGENT_STATUS_COLORS } from '../../lib/statusColors';
 import { formatDuration, formatTime, calculateDuration } from '../../lib/formatters';
+import { createGridDatasource } from '../../lib/gridDatasource';
+import { DefaultCellRenderer, LoadingSkeleton } from '../LoadingCellRenderer/LoadingCellRenderer';
 
 // Status cell renderer with colored chip
-function StatusCellRenderer(params: ICellRendererParams<AgentRowData>) {
+function StatusCellRenderer(params: ICellRendererParams<AgentRow>) {
+  if (!params.data) return <LoadingSkeleton />;
   const status = params.value as AgentState;
+  if (!status) return null;
   const config = AGENT_STATUS_COLORS[status];
+  if (!config) return null;
   const isDark = params.context?.isDarkMode;
   const colors = isDark ? config.dark : config.light;
 
@@ -43,7 +48,8 @@ function StatusCellRenderer(params: ICellRendererParams<AgentRowData>) {
 }
 
 // Idle time cell renderer with warning colors for long idle times
-function IdleTimeCellRenderer(params: ICellRendererParams<AgentRowData>) {
+function IdleTimeCellRenderer(params: ICellRendererParams<AgentRow>) {
+  if (!params.data) return <LoadingSkeleton />;
   const idleSeconds = params.value as number | null;
   const state = params.data?.state;
   const isDark = params.context?.isDarkMode;
@@ -74,50 +80,18 @@ function IdleTimeCellRenderer(params: ICellRendererParams<AgentRowData>) {
   );
 }
 
-interface AgentRowData {
-  id: string;
-  name: string;
-  state: AgentState;
-  stateChangedAt: string;
-  timeInStatus: number;
-  // Current call info (if ON_CALL)
-  currentCaller: string | null;
-  callDuration: number | null;
-  callStartTime: string | null;
-  // Last call info (historical)
-  lastCaller: string | null;
-  lastCallTime: string | null;
-  lastCallDuration: number | null;
-  // Calculated fields
-  idleTime: number | null; // Time since last call ended (for ONLINE agents)
-}
-
-interface AgentGridProps {
-  agents: Agent[];
-  calls: Call[];
-}
-
-export function AgentGrid({ agents, calls }: AgentGridProps) {
+export function AgentGrid() {
   const theme = useTheme();
-  const gridRef = React.useRef<AgGridReact<AgentRowData>>(null);
-  const [rowData, setRowData] = React.useState<AgentRowData[]>([]);
+  const gridRef = React.useRef<AgGridReact<AgentRow>>(null);
 
-  // Create a stable key for calls array to optimize memoization
-  // Only recompute map when actual call data changes, not just array reference
-  const callsKey = React.useMemo(() => {
-    return calls.map(c => `${c.agentId}:${c.id}`).join(',');
-  }, [calls]);
+  // Create datasource for infinite row model
+  const datasource = React.useMemo(
+    () => createGridDatasource<AgentRow>({ endpoint: '/agents/query' }),
+    []
+  );
 
-  // Create a map of agentId -> call for quick lookup
-  const callsByAgent = React.useMemo(() => {
-    const map = new Map<string, Call>();
-    calls.forEach(call => map.set(call.agentId, call));
-    return map;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [callsKey]);
-
-  // Column definitions
-  const columnDefs = React.useMemo<ColDef<AgentRowData>[]>(() => [
+  // Column definitions with valueGetters for computed duration fields
+  const columnDefs = React.useMemo<ColDef<AgentRow>[]>(() => [
     {
       field: 'id',
       headerName: 'Agent ID',
@@ -141,15 +115,17 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
       sortable: true,
       width: 120,
       cellRenderer: StatusCellRenderer,
-      filterValueGetter: (params: ValueGetterParams<AgentRowData>) => AGENT_STATUS_COLORS[params.data?.state as AgentState]?.label || '',
+      filterValueGetter: (params: ValueGetterParams<AgentRow>) => AGENT_STATUS_COLORS[params.data?.state as AgentState]?.label || '',
     },
     {
-      field: 'timeInStatus',
+      colId: 'timeInStatus',
       headerName: 'Time in Status',
       filter: 'agNumberColumnFilter',
       sortable: true,
       width: 130,
-      valueFormatter: (params: ValueFormatterParams<AgentRowData>) => formatDuration(params.value),
+      valueGetter: (params: ValueGetterParams<AgentRow>) =>
+        params.data?.stateChangedAt ? calculateDuration(params.data.stateChangedAt) : null,
+      valueFormatter: (params: ValueFormatterParams<AgentRow>) => formatDuration(params.value),
     },
     {
       headerName: 'Current Call',
@@ -161,15 +137,17 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
           filter: 'agTextColumnFilter',
           sortable: true,
           width: 140,
-          valueFormatter: (params: ValueFormatterParams<AgentRowData>) => params.value || '-',
+          valueFormatter: (params: ValueFormatterParams<AgentRow>) => params.value || '-',
         },
         {
-          field: 'callDuration',
+          colId: 'callDuration',
           headerName: 'Duration',
           filter: 'agNumberColumnFilter',
           sortable: true,
           width: 100,
-          valueFormatter: (params: ValueFormatterParams<AgentRowData>) => formatDuration(params.value),
+          valueGetter: (params: ValueGetterParams<AgentRow>) =>
+            params.data?.callStartTime ? calculateDuration(params.data.callStartTime) : null,
+          valueFormatter: (params: ValueFormatterParams<AgentRow>) => formatDuration(params.value),
         },
       ],
     },
@@ -178,37 +156,46 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
       marryChildren: true,
       children: [
         {
-          field: 'lastCaller',
+          colId: 'lastCaller',
           headerName: 'Caller',
           filter: 'agTextColumnFilter',
           sortable: true,
           width: 140,
-          valueFormatter: (params: ValueFormatterParams<AgentRowData>) => params.value || '-',
+          valueGetter: (params: ValueGetterParams<AgentRow>) => params.data?.lastCallOriginator || null,
+          valueFormatter: (params: ValueFormatterParams<AgentRow>) => params.value || '-',
         },
         {
-          field: 'lastCallTime',
+          colId: 'lastCallTime',
           headerName: 'Ended At',
           filter: 'agTextColumnFilter',
           sortable: true,
           width: 110,
-          valueFormatter: (params: ValueFormatterParams<AgentRowData>) => formatTime(params.value),
+          valueGetter: (params: ValueGetterParams<AgentRow>) => params.data?.lastCallEndTime || null,
+          valueFormatter: (params: ValueFormatterParams<AgentRow>) => formatTime(params.value),
         },
         {
-          field: 'lastCallDuration',
+          colId: 'lastCallDuration',
           headerName: 'Duration',
           filter: 'agNumberColumnFilter',
           sortable: true,
           width: 100,
-          valueFormatter: (params: ValueFormatterParams<AgentRowData>) => formatDuration(params.value),
+          valueGetter: (params: ValueGetterParams<AgentRow>) => params.data?.lastCallDurationSeconds ?? null,
+          valueFormatter: (params: ValueFormatterParams<AgentRow>) => formatDuration(params.value),
         },
       ],
     },
     {
-      field: 'idleTime',
+      colId: 'idleTime',
       headerName: 'Idle Time',
       filter: 'agNumberColumnFilter',
       sortable: true,
       width: 110,
+      valueGetter: (params: ValueGetterParams<AgentRow>) => {
+        if (params.data?.state === 'ONLINE' && params.data?.lastCallEndTime) {
+          return calculateDuration(params.data.lastCallEndTime);
+        }
+        return null;
+      },
       cellRenderer: IdleTimeCellRenderer,
       headerTooltip: 'Time since last call ended (ONLINE agents only). Warning at 10min, alert at 20min.',
     },
@@ -218,50 +205,28 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
   const defaultColDef = React.useMemo<ColDef>(() => ({
     resizable: true,
     floatingFilter: true,
+    cellRenderer: DefaultCellRenderer,
   }), []);
 
-  // Update row data with calculated durations every second
+  // Refresh data from server every 5 seconds
   React.useEffect(() => {
-    const updateData = () => {
-      const rows: AgentRowData[] = agents.map(agent => {
-        const call = callsByAgent.get(agent.id);
-
-        // Calculate idle time for ONLINE agents
-        let idleTime: number | null = null;
-        if (agent.state === 'ONLINE' && agent.lastCallEndTime) {
-          idleTime = calculateDuration(agent.lastCallEndTime);
-        }
-
-        return {
-          id: agent.id,
-          name: agent.name,
-          state: agent.state,
-          stateChangedAt: agent.stateChangedAt,
-          timeInStatus: calculateDuration(agent.stateChangedAt) || 0,
-          // Current call
-          currentCaller: call?.originator || null,
-          callDuration: call ? calculateDuration(call.startTime) : null,
-          callStartTime: call?.startTime || null,
-          // Last call
-          lastCaller: agent.lastCallOriginator || null,
-          lastCallTime: agent.lastCallEndTime || null,
-          lastCallDuration: agent.lastCallDurationSeconds || null,
-          // Idle time
-          idleTime,
-        };
-      });
-
-      setRowData(rows);
-    };
-
-    // Initial update
-    updateData();
-
-    // Update every second for live durations
-    const interval = setInterval(updateData, 1000);
-
+    const interval = setInterval(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshInfiniteCache();
+      }
+    }, 5000);
     return () => clearInterval(interval);
-  }, [agents, callsByAgent]);
+  }, []);
+
+  // Refresh computed cells every second for live durations
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      if (gridRef.current?.api) {
+        gridRef.current.api.refreshCells({ force: true });
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // AG Grid theme based on MUI theme
   const gridTheme = React.useMemo(() => {
@@ -285,32 +250,18 @@ export function AgentGrid({ agents, calls }: AgentGridProps) {
     isDarkMode: theme.palette.mode === 'dark',
   }), [theme.palette.mode]);
 
-  // Force refresh cells when grid context changes to update pill colors
-  // Using a ref to track if this is the initial render
-  const isInitialRenderRef = React.useRef(true);
-  React.useEffect(() => {
-    // Skip the initial render to avoid unnecessary refresh
-    if (isInitialRenderRef.current) {
-      isInitialRenderRef.current = false;
-      return;
-    }
-    // Use requestAnimationFrame to ensure grid context is updated before refresh
-    requestAnimationFrame(() => {
-      if (gridRef.current?.api) {
-        gridRef.current.api.refreshCells({ force: true });
-      }
-    });
-  }, [gridContext]);
-
   return (
     <Box sx={{ height: '100%', width: '100%' }}>
-      <AgGridReact<AgentRowData>
+      <AgGridReact<AgentRow>
         ref={gridRef}
-        rowData={rowData}
         columnDefs={columnDefs}
         defaultColDef={defaultColDef}
         theme={gridTheme}
         context={gridContext}
+        rowModelType="infinite"
+        datasource={datasource}
+        cacheBlockSize={100}
+        maxBlocksInCache={500}
         rowBuffer={20}
         animateRows={false}
         getRowId={(params) => params.data.id}

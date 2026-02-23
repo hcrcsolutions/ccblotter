@@ -4,10 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import type {
-  Agent,
-  Call,
-  QueuedCall,
-  QueueStats,
   AgentSummary,
   SystemStatus,
   ConnectionState,
@@ -16,11 +12,8 @@ import type {
   InfrastructureSummary,
 } from '../types';
 import {
-  isValidAgentArray,
-  isValidCallArray,
   isValidAgentSummary,
   isValidSystemStatus,
-  isValidQueueMessage,
   isValidInfrastructureTopology,
   safeParseJson,
 } from '../lib/typeValidation';
@@ -41,12 +34,6 @@ const initialSystemStatus: SystemStatus = {
   redisConnected: true,
   lastUpdated: new Date().toISOString(),
   errorMessage: null,
-};
-
-const initialQueueStats: QueueStats = {
-  queuedCount: 0,
-  avgWaitSeconds: 0,
-  longestWaitSeconds: 0,
 };
 
 const initialInfrastructure: InfrastructureTopology = {
@@ -188,17 +175,10 @@ function calculateInfrastructureSummary(topology: InfrastructureTopology): Infra
 /**
  * WebSocket hook for real-time dashboard updates.
  *
- * Implements:
- * - STOMP over WebSocket connection
- * - REST API fallback for initial data load
- * - Automatic reconnection with exponential backoff
- * - Fail-closed behavior on Redis unavailability
+ * Subscribes to lightweight topics only: summary, system status, infrastructure.
+ * Agents, calls, and queue data are fetched via REST grid endpoints.
  */
 export function useWebSocket(): DashboardState {
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [calls, setCalls] = useState<Call[]>([]);
-  const [queuedCalls, setQueuedCalls] = useState<QueuedCall[]>([]);
-  const [queueStats, setQueueStats] = useState<QueueStats>(initialQueueStats);
   const [summary, setSummary] = useState<AgentSummary>(initialSummary);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(initialSystemStatus);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
@@ -221,61 +201,12 @@ export function useWebSocket(): DashboardState {
     console.log('Fetching initial data via REST API...', apiUrl);
 
     const results = await Promise.allSettled([
-      fetch(`${apiUrl}/agents`),
-      fetch(`${apiUrl}/calls`),
-      fetch(`${apiUrl}/queue`),
       fetch(`${apiUrl}/agents/summary`),
       fetch(`${apiUrl}/health`),
       fetch(`${apiUrl}/infrastructure`),
     ]);
 
-    const [agentsResult, callsResult, queueResult, summaryResult, healthResult, infrastructureResult] = results;
-
-    // Process agents
-    if (agentsResult.status === 'fulfilled' && agentsResult.value.ok) {
-      try {
-        const agentsData = await agentsResult.value.json();
-        if (isMountedRef.current) {
-          setAgents(agentsData);
-          console.log(`Loaded ${agentsData.length} agents`);
-        }
-      } catch (e) {
-        console.error('Failed to parse agents response:', e);
-      }
-    } else if (agentsResult.status === 'rejected') {
-      console.error('Failed to fetch agents:', agentsResult.reason);
-    }
-
-    // Process calls
-    if (callsResult.status === 'fulfilled' && callsResult.value.ok) {
-      try {
-        const callsData = await callsResult.value.json();
-        if (isMountedRef.current) {
-          setCalls(callsData);
-          console.log(`Loaded ${callsData.length} calls`);
-        }
-      } catch (e) {
-        console.error('Failed to parse calls response:', e);
-      }
-    } else if (callsResult.status === 'rejected') {
-      console.error('Failed to fetch calls:', callsResult.reason);
-    }
-
-    // Process queue
-    if (queueResult.status === 'fulfilled' && queueResult.value.ok) {
-      try {
-        const queueData = await queueResult.value.json();
-        if (isMountedRef.current) {
-          setQueuedCalls(queueData.calls || []);
-          setQueueStats(queueData.stats || initialQueueStats);
-          console.log(`Loaded ${queueData.calls?.length || 0} queued calls`);
-        }
-      } catch (e) {
-        console.error('Failed to parse queue response:', e);
-      }
-    } else if (queueResult.status === 'rejected') {
-      console.error('Failed to fetch queue:', queueResult.reason);
-    }
+    const [summaryResult, healthResult, infrastructureResult] = results;
 
     // Process summary
     if (summaryResult.status === 'fulfilled' && summaryResult.value.ok) {
@@ -360,7 +291,7 @@ export function useWebSocket(): DashboardState {
         reconnectAttempts.current = 0;
 
         // Helper to handle parse errors consistently
-        const handleParseResult = <T>(
+        const handleParseResult = <T,>(
           data: T | null,
           topic: string,
           onSuccess: (data: T) => void
@@ -379,21 +310,7 @@ export function useWebSocket(): DashboardState {
           }
         };
 
-        // Subscribe to all topics and store references for cleanup
-        const agentsSub = client.subscribe('/topic/agents', (message: IMessage) => {
-          if (!isMountedRef.current) return;
-          const data = safeParseJson(message.body, isValidAgentArray);
-          handleParseResult(data, 'agents', setAgents);
-        });
-        subscriptionsRef.current.push(agentsSub);
-
-        const callsSub = client.subscribe('/topic/calls', (message: IMessage) => {
-          if (!isMountedRef.current) return;
-          const data = safeParseJson(message.body, isValidCallArray);
-          handleParseResult(data, 'calls', setCalls);
-        });
-        subscriptionsRef.current.push(callsSub);
-
+        // Subscribe to lightweight topics only (summary, system, infrastructure)
         const summarySub = client.subscribe('/topic/summary', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidAgentSummary);
@@ -407,16 +324,6 @@ export function useWebSocket(): DashboardState {
           handleParseResult(data, 'system', setSystemStatus);
         });
         subscriptionsRef.current.push(systemSub);
-
-        const queueSub = client.subscribe('/topic/queue', (message: IMessage) => {
-          if (!isMountedRef.current) return;
-          const data = safeParseJson(message.body, isValidQueueMessage);
-          handleParseResult(data, 'queue', (queueData) => {
-            setQueuedCalls(queueData.calls || []);
-            setQueueStats(queueData.stats || initialQueueStats);
-          });
-        });
-        subscriptionsRef.current.push(queueSub);
 
         const infrastructureSub = client.subscribe('/topic/infrastructure', (message: IMessage) => {
           if (!isMountedRef.current) return;
@@ -520,10 +427,6 @@ export function useWebSocket(): DashboardState {
   }, [connect]);
 
   return {
-    agents,
-    calls,
-    queuedCalls,
-    queueStats,
     summary,
     systemStatus,
     connectionState,

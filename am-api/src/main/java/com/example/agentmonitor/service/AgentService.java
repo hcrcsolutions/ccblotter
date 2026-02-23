@@ -7,7 +7,10 @@ import com.example.agentmonitor.model.AgentSummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -40,20 +43,38 @@ public class AgentService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Get all agents from Redis.
+     * Get all agents from Redis using pipelined batch reads.
      * @throws RedisUnavailableException if Redis is not available
      */
+    @SuppressWarnings("unchecked")
     public List<Agent> getAllAgents() {
         ensureRedisAvailable();
 
-        List<Agent> agents = new ArrayList<>();
         Set<Object> agentIds = redisTemplate.opsForSet().members(AGENTS_ALL_KEY);
+        if (agentIds == null || agentIds.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-        if (agentIds != null) {
-            for (Object id : agentIds) {
-                Agent agent = getAgent(id.toString());
-                if (agent != null) {
-                    agents.add(agent);
+        List<String> idList = agentIds.stream().map(Object::toString).toList();
+
+        List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                for (String id : idList) {
+                    operations.opsForHash().entries(AGENT_KEY_PREFIX + id);
+                }
+                return null;
+            }
+        });
+
+        List<Agent> agents = new ArrayList<>(idList.size());
+        for (Object result : results) {
+            Map<Object, Object> data = (Map<Object, Object>) result;
+            if (data != null && !data.isEmpty()) {
+                try {
+                    agents.add(objectMapper.convertValue(data, Agent.class));
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize agent: {}", e.getMessage());
                 }
             }
         }
@@ -150,8 +171,7 @@ public class AgentService {
 
         log.info("Agent {} state changed: {} -> {}", agentId, oldState, newState);
 
-        // Broadcast updates
-        broadcastAgents();
+        // Broadcast summary only (agents are now fetched via REST grid endpoint)
         broadcastSummary();
     }
 

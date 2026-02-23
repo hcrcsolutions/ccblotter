@@ -6,14 +6,6 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import type { DashboardState } from '../types';
 
 const initialState: DashboardState = {
-  agents: [],
-  calls: [],
-  queuedCalls: [],
-  queueStats: {
-    queuedCount: 0,
-    avgWaitSeconds: 0,
-    longestWaitSeconds: 0,
-  },
   summary: {
     online: 0,
     onCall: 0,

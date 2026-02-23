@@ -8,7 +8,10 @@ import com.example.agentmonitor.model.CallState;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
@@ -47,20 +50,38 @@ public class CallService {
     private final ObjectMapper objectMapper;
 
     /**
-     * Get all active calls.
+     * Get all active calls using pipelined batch reads.
      * @throws RedisUnavailableException if Redis is not available
      */
+    @SuppressWarnings("unchecked")
     public List<Call> getActiveCalls() {
         ensureRedisAvailable();
 
-        List<Call> calls = new ArrayList<>();
         Set<Object> callIds = redisTemplate.opsForSet().members(ACTIVE_CALLS_KEY);
+        if (callIds == null || callIds.isEmpty()) {
+            return new ArrayList<>();
+        }
 
-        if (callIds != null) {
-            for (Object id : callIds) {
-                Call call = getCall(id.toString());
-                if (call != null) {
-                    calls.add(call);
+        List<String> idList = callIds.stream().map(Object::toString).toList();
+
+        List<Object> results = redisTemplate.executePipelined(new SessionCallback<>() {
+            @Override
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                for (String id : idList) {
+                    operations.opsForHash().entries(CALL_KEY_PREFIX + id);
+                }
+                return null;
+            }
+        });
+
+        List<Call> calls = new ArrayList<>(idList.size());
+        for (Object result : results) {
+            Map<Object, Object> data = (Map<Object, Object>) result;
+            if (data != null && !data.isEmpty()) {
+                try {
+                    calls.add(objectMapper.convertValue(data, Call.class));
+                } catch (Exception e) {
+                    log.warn("Failed to deserialize call: {}", e.getMessage());
                 }
             }
         }
@@ -128,9 +149,6 @@ public class CallService {
 
         log.info("Started call {} for agent {} from {}", callId, agentId, originator);
 
-        // Broadcast updates
-        broadcastCalls();
-
         return call;
     }
 
@@ -156,7 +174,6 @@ public class CallService {
             log.error("Orphaned call detected: {} has no valid agent {}", callId, call.getAgentId());
             // Clean up the orphaned call
             removeCallRecord(callId);
-            broadcastCalls();
             return;
         }
 
@@ -187,9 +204,6 @@ public class CallService {
         agentService.updateAgentState(call.getAgentId(), AgentState.ONLINE, null);
 
         log.info("Ended call {} for agent {} (duration: {}s)", callId, call.getAgentId(), durationSeconds);
-
-        // Broadcast updates
-        broadcastCalls();
     }
 
     private void removeCallRecord(String callId) {
@@ -215,7 +229,6 @@ public class CallService {
         redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
 
         log.info("Call {} state changed to {}", callId, newState);
-        broadcastCalls();
     }
 
     /**

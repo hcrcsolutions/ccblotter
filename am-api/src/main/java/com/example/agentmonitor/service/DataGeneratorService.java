@@ -3,8 +3,13 @@ package com.example.agentmonitor.service;
 import com.example.agentmonitor.model.Agent;
 import com.example.agentmonitor.model.AgentState;
 import com.example.agentmonitor.model.Call;
+import com.example.agentmonitor.model.CallState;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -31,6 +36,7 @@ public class DataGeneratorService {
     private final AgentService agentService;
     private final CallService callService;
     private final QueueService queueService;
+    private final RedisTemplate<String, Object> redisTemplate;
 
     // Skills for queue routing
     private static final String[] SKILLS = {"Sales", "Support", "Billing", "Technical"};
@@ -323,5 +329,171 @@ public class DataGeneratorService {
      */
     private void backdateCallStartTime(String callId, Instant newStartTime) {
         callService.updateCallStartTime(callId, newStartTime);
+    }
+
+    /**
+     * Generate a large dataset by writing directly to Redis with pipelining.
+     * Bypasses service-layer validations for speed.
+     *
+     * @param agentCount  total agents to create
+     * @param onCallCount agents in ON_CALL state (each gets an active call)
+     * @param queueCount  queued calls to create
+     */
+    public void generateBulkData(int agentCount, int onCallCount, int queueCount) {
+        log.info("Starting bulk generation: {} agents, {} calls, {} queued...",
+                agentCount, onCallCount, queueCount);
+
+        long start = System.currentTimeMillis();
+
+        // Flush all Redis data
+        redisTemplate.getConnectionFactory().getConnection().serverCommands().flushDb();
+        log.info("Flushed Redis");
+
+        Instant now = Instant.now();
+
+        // Determine state distribution
+        int remaining = agentCount - onCallCount;
+        int onlineCount = (int) (remaining * 0.6);
+        int awayCount = (int) (remaining * 0.25);
+        int unavailableCount = remaining - onlineCount - awayCount;
+
+        // Pipeline agents in batches of 1000
+        int batchSize = 1000;
+        int agentIndex = 0;
+
+        for (int batchStart = 0; batchStart < agentCount; batchStart += batchSize) {
+            final int bs = batchStart;
+            final int be = Math.min(batchStart + batchSize, agentCount);
+
+            redisTemplate.executePipelined(new SessionCallback<>() {
+                @Override
+                public Object execute(RedisOperations operations) throws DataAccessException {
+                    for (int i = bs; i < be; i++) {
+                        String agentId = String.format("AGT-%05d", i + 1);
+                        String name = generateAgentName();
+
+                        AgentState state;
+                        if (i < onCallCount) {
+                            state = AgentState.ON_CALL;
+                        } else if (i < onCallCount + onlineCount) {
+                            state = AgentState.ONLINE;
+                        } else if (i < onCallCount + onlineCount + awayCount) {
+                            state = AgentState.AWAY;
+                        } else {
+                            state = AgentState.UNAVAILABLE;
+                        }
+
+                        Instant stateChanged = generateStateChangedTime(state);
+                        String callId = state == AgentState.ON_CALL
+                                ? UUID.randomUUID().toString() : "";
+
+                        // Agent hash
+                        Map<String, String> agentMap = new LinkedHashMap<>();
+                        agentMap.put("id", agentId);
+                        agentMap.put("name", name);
+                        agentMap.put("state", state.name());
+                        agentMap.put("stateChangedAt", stateChanged.toString());
+                        agentMap.put("currentCallId", callId);
+
+                        // Last call info for non-ON_CALL agents (85% chance)
+                        if (state != AgentState.ON_CALL && random.nextInt(100) < 85) {
+                            Instant lastEnd = generateLastCallEndTime(state);
+                            long dur = 60 + random.nextInt(1740);
+                            Instant lastStart = lastEnd.minus(dur, ChronoUnit.SECONDS);
+                            agentMap.put("lastCallOriginator", generatePhoneNumber());
+                            agentMap.put("lastCallStartTime", lastStart.toString());
+                            agentMap.put("lastCallEndTime", lastEnd.toString());
+                            agentMap.put("lastCallDurationSeconds", String.valueOf(dur));
+                        } else {
+                            agentMap.put("lastCallOriginator", "");
+                            agentMap.put("lastCallStartTime", "");
+                            agentMap.put("lastCallEndTime", "");
+                            agentMap.put("lastCallDurationSeconds", "");
+                        }
+
+                        operations.opsForHash().putAll("agent:" + agentId, agentMap);
+                        operations.opsForSet().add("agents:all", agentId);
+                        operations.opsForSet().add("agents:by-state:" + state.name(), agentId);
+
+                        // Create call for ON_CALL agents
+                        if (state == AgentState.ON_CALL) {
+                            Instant callStart = now.minus(
+                                    1 + random.nextInt(45), ChronoUnit.MINUTES);
+                            CallState callState = random.nextInt(100) < 80
+                                    ? CallState.TALKING : CallState.ON_HOLD;
+
+                            Map<String, String> callMap = new LinkedHashMap<>();
+                            callMap.put("id", callId);
+                            callMap.put("originator", generatePhoneNumber());
+                            callMap.put("agentId", agentId);
+                            callMap.put("agentName", name);
+                            callMap.put("startTime", callStart.toString());
+                            callMap.put("state", callState.name());
+
+                            operations.opsForHash().putAll("call:" + callId, callMap);
+                            operations.opsForSet().add("calls:active", callId);
+                        }
+                    }
+                    return null;
+                }
+            });
+
+            log.info("  Agents batch {}-{} written", bs + 1, be);
+        }
+
+        // Pipeline queued calls in batches
+        for (int batchStart = 0; batchStart < queueCount; batchStart += batchSize) {
+            final int qbs = batchStart;
+            final int qbe = Math.min(batchStart + batchSize, queueCount);
+
+            redisTemplate.executePipelined(new SessionCallback<>() {
+                @Override
+                public Object execute(RedisOperations operations) throws DataAccessException {
+                    for (int i = qbs; i < qbe; i++) {
+                        String queueId = UUID.randomUUID().toString();
+                        String originator = generatePhoneNumber();
+                        String skill = SKILLS[random.nextInt(SKILLS.length)];
+
+                        int priorityRoll = random.nextInt(100);
+                        int priority = priorityRoll < 10 ? 1
+                                : priorityRoll < 35 ? 2 : 3;
+
+                        int waitRoll = random.nextInt(100);
+                        int waitSeconds;
+                        if (waitRoll < 30) {
+                            waitSeconds = 5 + random.nextInt(26);
+                        } else if (waitRoll < 70) {
+                            waitSeconds = 30 + random.nextInt(61);
+                        } else if (waitRoll < 90) {
+                            waitSeconds = 90 + random.nextInt(91);
+                        } else {
+                            waitSeconds = 180 + random.nextInt(121);
+                        }
+
+                        Instant queuedAt = now.minus(waitSeconds, ChronoUnit.SECONDS);
+
+                        Map<String, String> queueMap = new LinkedHashMap<>();
+                        queueMap.put("id", queueId);
+                        queueMap.put("originator", originator);
+                        queueMap.put("queuedAt", queuedAt.toString());
+                        queueMap.put("priority", String.valueOf(priority));
+                        queueMap.put("skill", skill);
+
+                        operations.opsForHash().putAll("queue:call:" + queueId, queueMap);
+                        operations.opsForSet().add("queue:calls", queueId);
+                    }
+                    return null;
+                }
+            });
+
+            log.info("  Queue batch {}-{} written", qbs + 1, qbe);
+        }
+
+        long elapsed = System.currentTimeMillis() - start;
+        log.info("Bulk generation complete in {}ms: {} agents, {} calls, {} queued",
+                elapsed, agentCount, onCallCount, queueCount);
+
+        // Broadcast summary
+        agentService.broadcastSummary();
     }
 }

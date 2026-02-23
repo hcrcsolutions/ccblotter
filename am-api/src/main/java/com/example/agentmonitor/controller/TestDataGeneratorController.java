@@ -189,6 +189,40 @@ public class TestDataGeneratorController {
     }
 
     /**
+     * Generate a large dataset for load testing.
+     * Writes directly to Redis with pipelining for speed.
+     */
+    @PostMapping("/generate-bulk")
+    public ResponseEntity<Map<String, Object>> generateBulkData(@RequestBody Map<String, Integer> body) {
+        try {
+            int agentCount = body.getOrDefault("agentCount", 30000);
+            int onCallCount = body.getOrDefault("onCallCount", 27000);
+            int queueCount = body.getOrDefault("queueCount", 5000);
+
+            if (onCallCount > agentCount) {
+                return ResponseEntity.badRequest().body(
+                        Map.of("error", "onCallCount cannot exceed agentCount"));
+            }
+
+            // Stop simulation if running
+            simulationService.stopSimulation();
+
+            dataGeneratorService.generateBulkData(agentCount, onCallCount, queueCount);
+
+            return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "agentCount", agentCount,
+                "onCallCount", onCallCount,
+                "queueCount", queueCount
+            ));
+        } catch (Exception e) {
+            log.error("Failed to generate bulk data", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
+
+    /**
      * Start the call center simulation.
      * Simulation creates realistic activity: new calls, call endings, state changes.
      */

@@ -9,6 +9,15 @@ public class ReceiverProperties {
     private long orphanCheckIntervalMs = 30000;
     private int orphanThresholdMinutes = 60;
     private int dedupCacheSize = 10000;
+    private boolean broadcastGridData = true;
+
+    public boolean isBroadcastGridData() {
+        return broadcastGridData;
+    }
+
+    public void setBroadcastGridData(boolean broadcastGridData) {
+        this.broadcastGridData = broadcastGridData;
+    }
 
     public long getWebsocketThrottleMs() {
         return websocketThrottleMs;

@@ -5,7 +5,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useTheme } from '@mui/material/styles';
 import { AgGridReact } from 'ag-grid-react';
-import type { ColDef, ICellRendererParams, ValueFormatterParams } from 'ag-grid-community';
+import type { ColDef, ICellRendererParams, ValueFormatterParams, ValueGetterParams } from 'ag-grid-community';
 import { themeQuartz } from 'ag-grid-community';
 import Chip from '@mui/material/Chip';
 import QueueIcon from '@mui/icons-material/Queue';
@@ -15,13 +15,16 @@ import WarningIcon from '@mui/icons-material/Warning';
 import { useWebSocketContext } from '../../context/WebSocketContext';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 import { SummaryCard } from '../../components/SummaryCard/SummaryCard';
-import type { Call, CallState } from '../../types';
+import type { Call, CallState, QueuedCall, QueueStats } from '../../types';
 import '../../lib/agGridSetup';
 import { CALL_STATE_COLORS, PRIORITY_COLORS } from '../../lib/statusColors';
 import { formatDuration, calculateDuration } from '../../lib/formatters';
+import { createGridDatasource } from '../../lib/gridDatasource';
+import { DefaultCellRenderer, LoadingSkeleton } from '../../components/LoadingCellRenderer/LoadingCellRenderer';
 
 // Call state cell renderer
 function CallStateCellRenderer(params: ICellRendererParams) {
+  if (!params.data) return <LoadingSkeleton />;
   const state = params.value as CallState;
   if (!state) return null;
   const config = CALL_STATE_COLORS[state];
@@ -49,6 +52,7 @@ function CallStateCellRenderer(params: ICellRendererParams) {
 
 // Priority cell renderer
 function PriorityCellRenderer(params: ICellRendererParams) {
+  if (!params.data) return <LoadingSkeleton />;
   const priority = params.value as number;
   const config = PRIORITY_COLORS[priority] || PRIORITY_COLORS[3];
   const isDark = params.context?.isDarkMode;
@@ -75,6 +79,7 @@ function PriorityCellRenderer(params: ICellRendererParams) {
 
 // Wait time cell renderer with color coding
 function WaitTimeCellRenderer(params: ICellRendererParams) {
+  if (!params.data) return <LoadingSkeleton />;
   const waitSeconds = params.value as number | null;
   const isDark = params.context?.isDarkMode;
 
@@ -101,98 +106,65 @@ function WaitTimeCellRenderer(params: ICellRendererParams) {
 
 export default function CallsPage() {
   const theme = useTheme();
-  const { calls, queuedCalls, queueStats, systemStatus, connectionState } = useWebSocketContext();
+  const { systemStatus, connectionState } = useWebSocketContext();
 
   const queuedGridRef = React.useRef<AgGridReact>(null);
   const activeGridRef = React.useRef<AgGridReact>(null);
 
-  const [queuedRowData, setQueuedRowData] = React.useState<Array<{
-    id: string;
-    originator: string;
-    waitTime: number;
-    priority: number;
-    skill: string;
-    position: number;
-  }>>([]);
+  // Local state from grid metadata
+  const [queueStats, setQueueStats] = React.useState<QueueStats>({
+    queuedCount: 0,
+    avgWaitSeconds: 0,
+    longestWaitSeconds: 0,
+  });
+  const [activeCallCount, setActiveCallCount] = React.useState(0);
 
-  const [activeRowData, setActiveRowData] = React.useState<Array<{
-    id: string;
-    originator: string;
-    agentName: string;
-    duration: number;
-    state: CallState;
-  }>>([]);
+  // Datasources for infinite row model
+  const queueDatasource = React.useMemo(
+    () => createGridDatasource<QueuedCall>({
+      endpoint: '/queue/query',
+      onMetadata: (meta) => {
+        setQueueStats({
+          queuedCount: (meta.queuedCount as number) || 0,
+          avgWaitSeconds: (meta.avgWaitSeconds as number) || 0,
+          longestWaitSeconds: (meta.longestWaitSeconds as number) || 0,
+        });
+      },
+    }),
+    []
+  );
 
-  // Use refs to hold current data to avoid recreating intervals on every data change
-  const queuedCallsRef = React.useRef(queuedCalls);
-  const callsRef = React.useRef(calls);
-
-  // Keep refs in sync with props
-  React.useEffect(() => {
-    queuedCallsRef.current = queuedCalls;
-  }, [queuedCalls]);
-
-  React.useEffect(() => {
-    callsRef.current = calls;
-  }, [calls]);
-
-  // Update queued calls data - single interval, reads from ref
-  React.useEffect(() => {
-    const updateQueuedData = () => {
-      const currentCalls = queuedCallsRef.current;
-      const rows = currentCalls.map((call, index) => ({
-        id: call.id,
-        originator: call.originator,
-        waitTime: calculateDuration(call.queuedAt) || 0,
-        priority: call.priority,
-        skill: call.skill,
-        position: index + 1,
-      }));
-      setQueuedRowData(rows);
-    };
-
-    // Initial update
-    updateQueuedData();
-
-    // Single interval that persists for component lifetime
-    const interval = setInterval(updateQueuedData, 1000);
-    return () => clearInterval(interval);
-  }, []); // Empty deps - interval created once
-
-  // Update active calls data - single interval, reads from ref
-  React.useEffect(() => {
-    const updateActiveData = () => {
-      const currentCalls = callsRef.current;
-      const rows = currentCalls.map(call => ({
-        id: call.id,
-        originator: call.originator,
-        agentName: call.agentName,
-        duration: calculateDuration(call.startTime) || 0,
-        state: call.state,
-      }));
-      setActiveRowData(rows);
-    };
-
-    // Initial update
-    updateActiveData();
-
-    // Single interval that persists for component lifetime
-    const interval = setInterval(updateActiveData, 1000);
-    return () => clearInterval(interval);
-  }, []); // Empty deps - interval created once
+  const callsDatasource = React.useMemo(
+    () => createGridDatasource<Call>({
+      endpoint: '/calls/query',
+      onMetadata: (meta) => {
+        setActiveCallCount((meta.activeCallCount as number) || 0);
+      },
+    }),
+    []
+  );
 
   // Queued calls column definitions
   const queuedColumnDefs = React.useMemo<ColDef[]>(() => [
-    { field: 'position', headerName: '#', width: 60, sortable: true },
+    {
+      colId: 'position',
+      headerName: '#',
+      width: 60,
+      sortable: false,
+      valueGetter: (params: ValueGetterParams) =>
+        params.node?.rowIndex != null ? params.node.rowIndex + 1 : null,
+    },
     { field: 'originator', headerName: 'Caller', width: 140, filter: 'agTextColumnFilter', sortable: true },
     { field: 'skill', headerName: 'Skill', width: 100, filter: 'agTextColumnFilter', sortable: true },
     { field: 'priority', headerName: 'Priority', width: 100, cellRenderer: PriorityCellRenderer, sortable: true },
     {
-      field: 'waitTime',
+      colId: 'waitTime',
       headerName: 'Wait Time',
       width: 110,
-      cellRenderer: WaitTimeCellRenderer,
       sortable: true,
+      valueGetter: (params: ValueGetterParams) =>
+        params.data?.queuedAt ? calculateDuration(params.data.queuedAt) : null,
+      cellRenderer: WaitTimeCellRenderer,
     },
   ], []);
 
@@ -202,17 +174,38 @@ export default function CallsPage() {
     { field: 'agentName', headerName: 'Agent', width: 160, filter: 'agTextColumnFilter', sortable: true },
     { field: 'state', headerName: 'State', width: 100, cellRenderer: CallStateCellRenderer, sortable: true },
     {
-      field: 'duration',
+      colId: 'duration',
       headerName: 'Duration',
       width: 100,
-      valueFormatter: (params: ValueFormatterParams) => formatDuration(params.value),
       sortable: true,
+      valueGetter: (params: ValueGetterParams) =>
+        params.data?.startTime ? calculateDuration(params.data.startTime) : null,
+      valueFormatter: (params: ValueFormatterParams) => formatDuration(params.value),
     },
   ], []);
 
   const defaultColDef = React.useMemo<ColDef>(() => ({
     resizable: true,
+    cellRenderer: DefaultCellRenderer,
   }), []);
+
+  // Refresh data from server every 5 seconds
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      queuedGridRef.current?.api?.refreshInfiniteCache();
+      activeGridRef.current?.api?.refreshInfiniteCache();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh computed cells every second for live durations
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      queuedGridRef.current?.api?.refreshCells({ force: true });
+      activeGridRef.current?.api?.refreshCells({ force: true });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Grid theme
   const gridTheme = React.useMemo(() => {
@@ -234,22 +227,6 @@ export default function CallsPage() {
   const gridContext = React.useMemo(() => ({
     isDarkMode: theme.palette.mode === 'dark',
   }), [theme.palette.mode]);
-
-  // Refresh cells when grid context changes (theme mode)
-  // Using a ref to track if this is the initial render
-  const isInitialRenderRef = React.useRef(true);
-  React.useEffect(() => {
-    // Skip the initial render to avoid unnecessary refresh
-    if (isInitialRenderRef.current) {
-      isInitialRenderRef.current = false;
-      return;
-    }
-    // Use requestAnimationFrame to ensure grid context is updated before refresh
-    requestAnimationFrame(() => {
-      queuedGridRef.current?.api?.refreshCells({ force: true });
-      activeGridRef.current?.api?.refreshCells({ force: true });
-    });
-  }, [gridContext]);
 
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 
@@ -279,7 +256,7 @@ export default function CallsPage() {
             />
             <SummaryCard
               title="Active Calls"
-              value={calls.length}
+              value={activeCallCount}
               icon={<PhoneInTalkIcon sx={{ fontSize: 32 }} />}
               color="hsl(120, 59%, 30%)"
               bgColor="hsl(120, 80%, 95%)"
@@ -308,18 +285,22 @@ export default function CallsPage() {
             {/* Queued Calls */}
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
-                Queued Calls ({queuedCalls.length})
+                Queued Calls ({queueStats.queuedCount})
               </Typography>
               <Box sx={{ flex: 1 }}>
                 <AgGridReact
                   ref={queuedGridRef}
-                  rowData={queuedRowData}
                   columnDefs={queuedColumnDefs}
                   defaultColDef={defaultColDef}
                   theme={gridTheme}
                   context={gridContext}
+                  rowModelType="infinite"
+                  datasource={queueDatasource}
+                  cacheBlockSize={100}
+                  maxBlocksInCache={100}
                   getRowId={(params) => params.data.id}
                   suppressCellFocus={true}
+
                 />
               </Box>
             </Box>
@@ -327,18 +308,22 @@ export default function CallsPage() {
             {/* Active Calls */}
             <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
               <Typography variant="h6" sx={{ mb: 1 }}>
-                Active Calls ({calls.length})
+                Active Calls ({activeCallCount})
               </Typography>
               <Box sx={{ flex: 1 }}>
                 <AgGridReact
                   ref={activeGridRef}
-                  rowData={activeRowData}
                   columnDefs={activeColumnDefs}
                   defaultColDef={defaultColDef}
                   theme={gridTheme}
                   context={gridContext}
+                  rowModelType="infinite"
+                  datasource={callsDatasource}
+                  cacheBlockSize={100}
+                  maxBlocksInCache={100}
                   getRowId={(params) => params.data.id}
                   suppressCellFocus={true}
+
                 />
               </Box>
             </Box>

@@ -222,14 +222,58 @@ export interface InfrastructureSummary {
   datacenterSummaries: DatacenterSummary[];
 }
 
+// ============================================================================
+// Grid Types - For AG Grid infinite row model (server-side pagination)
+// ============================================================================
+
+export interface GridSortItem {
+  colId: string;
+  sort: 'asc' | 'desc';
+}
+
+export interface GridFilterItem {
+  filterType: 'text' | 'number';
+  type: string;
+  filter: string;
+  filterTo?: string;
+}
+
+export interface GridRequest {
+  startRow: number;
+  endRow: number;
+  sortModel: GridSortItem[];
+  filterModel: Record<string, GridFilterItem>;
+}
+
+export interface GridResponse<T> {
+  rows: T[];
+  lastRow: number;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Agent enriched with current call data (from POST /api/agents/query).
+ */
+export interface AgentRow {
+  id: string;
+  name: string;
+  state: AgentState;
+  stateChangedAt: string;
+  currentCallId: string | null;
+  currentCaller: string | null;
+  callStartTime: string | null;
+  callState: CallState | null;
+  lastCallOriginator: string | null;
+  lastCallStartTime: string | null;
+  lastCallEndTime: string | null;
+  lastCallDurationSeconds: number | null;
+}
+
 /**
  * Complete dashboard state from WebSocket.
+ * Note: agents, calls, queuedCalls, queueStats are now fetched via REST grid endpoints.
  */
 export interface DashboardState {
-  agents: Agent[];
-  calls: Call[];
-  queuedCalls: QueuedCall[];
-  queueStats: QueueStats;
   summary: AgentSummary;
   systemStatus: SystemStatus;
   connectionState: ConnectionState;

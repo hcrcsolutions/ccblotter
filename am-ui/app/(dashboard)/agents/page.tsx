@@ -9,8 +9,6 @@ import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
 
 export default function AgentsPage() {
   const {
-    agents,
-    calls,
     summary,
     systemStatus,
     connectionState,
@@ -37,7 +35,7 @@ export default function AgentsPage() {
 
           {/* Agent Grid */}
           <Box sx={{ mt: 3, flex: 1, minHeight: 0 }}>
-            <AgentGrid agents={agents} calls={calls} />
+            <AgentGrid />
           </Box>
         </>
       )}

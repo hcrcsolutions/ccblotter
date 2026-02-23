@@ -29,6 +29,7 @@ public class WebSocketBroadcaster {
     private final SimpMessagingTemplate messagingTemplate;
     private final StringRedisTemplate redisTemplate;
     private final long throttleMs;
+    private final boolean broadcastGridData;
     private final ConcurrentHashMap<String, Long> lastBroadcast = new ConcurrentHashMap<>();
     private final Executor broadcastExecutor;
 
@@ -51,10 +52,14 @@ public class WebSocketBroadcaster {
         this.messagingTemplate = messagingTemplate;
         this.redisTemplate = redisTemplate;
         this.throttleMs = props.getWebsocketThrottleMs();
+        this.broadcastGridData = props.isBroadcastGridData();
         this.broadcastExecutor = broadcastExecutor;
     }
 
     public void broadcastAgents() {
+        if (!broadcastGridData) {
+            return;
+        }
         submitBroadcast("/topic/agents", () -> {
             Set<String> agentIds = redisTemplate.opsForSet().members(RedisKeySchema.AGENTS_ALL_KEY);
             if (agentIds == null || agentIds.isEmpty()) {
@@ -68,6 +73,9 @@ public class WebSocketBroadcaster {
     }
 
     public void broadcastCalls() {
+        if (!broadcastGridData) {
+            return;
+        }
         submitBroadcast("/topic/calls", () -> {
             Set<String> callIds = redisTemplate.opsForSet().members(RedisKeySchema.ACTIVE_CALLS_KEY);
             if (callIds == null || callIds.isEmpty()) {
@@ -81,6 +89,9 @@ public class WebSocketBroadcaster {
     }
 
     public void broadcastQueue() {
+        if (!broadcastGridData) {
+            return;
+        }
         submitBroadcast("/topic/queue", () -> {
             Set<String> callIds = redisTemplate.opsForSet().members(RedisKeySchema.QUEUE_CALLS_KEY);
 

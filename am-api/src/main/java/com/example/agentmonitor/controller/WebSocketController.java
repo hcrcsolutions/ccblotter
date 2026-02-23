@@ -1,8 +1,8 @@
 package com.example.agentmonitor.controller;
 
-import com.example.agentmonitor.model.*;
+import com.example.agentmonitor.model.AgentSummary;
+import com.example.agentmonitor.model.SystemStatus;
 import com.example.agentmonitor.service.AgentService;
-import com.example.agentmonitor.service.CallService;
 import com.example.agentmonitor.service.RedisHealthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,7 +14,6 @@ import org.springframework.stereotype.Controller;
 import org.springframework.web.socket.messaging.SessionConnectedEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,7 +31,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class WebSocketController {
 
     private final AgentService agentService;
-    private final CallService callService;
     private final RedisHealthService healthService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -99,19 +97,11 @@ public class WebSocketController {
                 return;
             }
 
-            // Broadcast agents
-            List<Agent> agents = agentService.getAllAgents();
-            messagingTemplate.convertAndSend("/topic/agents", agents);
-
-            // Broadcast calls
-            List<Call> calls = callService.getActiveCalls();
-            messagingTemplate.convertAndSend("/topic/calls", calls);
-
-            // Broadcast summary
+            // Broadcast summary only (agents/calls/queue now fetched via REST grid endpoints)
             AgentSummary summary = agentService.getAgentSummary();
             messagingTemplate.convertAndSend("/topic/summary", summary);
 
-            log.debug("Broadcast complete: {} agents, {} calls", agents.size(), calls.size());
+            log.debug("Broadcast complete: summary sent");
         } catch (Exception e) {
             log.error("Error during broadcast", e);
             // Broadcast error status
