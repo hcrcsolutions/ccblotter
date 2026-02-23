@@ -207,7 +207,7 @@ export default function CallsPage() {
           setActiveCallCount((meta.activeCallCount as number) || 0);
         });
       }
-    }, 5000);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 
@@ -311,9 +311,10 @@ export default function CallsPage() {
                   datasource={queueDatasource}
                   cacheBlockSize={100}
                   maxBlocksInCache={100}
+                  rowBuffer={20}
+                  animateRows={false}
                   getRowId={(params) => params.data.id}
                   suppressCellFocus={true}
-
                 />
               </Box>
             </Box>
@@ -334,6 +335,8 @@ export default function CallsPage() {
                   datasource={callsDatasource}
                   cacheBlockSize={100}
                   maxBlocksInCache={100}
+                  rowBuffer={20}
+                  animateRows={false}
                   getRowId={(params) => params.data.id}
                   suppressCellFocus={true}
 

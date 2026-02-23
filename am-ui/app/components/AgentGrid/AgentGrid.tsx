@@ -215,7 +215,7 @@ export function AgentGrid() {
       if (gridRef.current?.api) {
         refreshVisibleRows(gridRef.current.api, '/agents/query', 100);
       }
-    }, 5000);
+    }, 2000);
     return () => clearInterval(interval);
   }, []);
 

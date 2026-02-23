@@ -100,24 +100,24 @@ export async function refreshVisibleRows<T>(
   cacheBlockSize: number,
   onMetadata?: (metadata: Record<string, unknown>) => void,
 ): Promise<void> {
-  const firstRow = api.getFirstDisplayedRowIndex();
-  const lastRow = api.getLastDisplayedRowIndex();
-
-  if (firstRow < 0 || lastRow < 0) {
-    return;
-  }
-
-  // Align to block boundaries so the server returns complete sorted pages
-  const startRow = Math.floor(firstRow / cacheBlockSize) * cacheBlockSize;
-  const endRow = (Math.floor(lastRow / cacheBlockSize) + 1) * cacheBlockSize;
-
-  const sortModel = mapSortModel(api.getColumnState());
-  const filterModel = mapFilterModel(api.getFilterModel());
-
-  const request: GridRequest = { startRow, endRow, sortModel, filterModel };
-  const apiUrl = getApiBaseUrl();
-
   try {
+    const firstRow = api.getFirstDisplayedRowIndex();
+    const lastRow = api.getLastDisplayedRowIndex();
+
+    if (firstRow < 0 || lastRow < 0) {
+      return;
+    }
+
+    // Align to block boundaries so the server returns complete sorted pages
+    const startRow = Math.floor(firstRow / cacheBlockSize) * cacheBlockSize;
+    const endRow = (Math.floor(lastRow / cacheBlockSize) + 1) * cacheBlockSize;
+
+    const sortModel = mapSortModel(api.getColumnState());
+    const filterModel = mapFilterModel(api.getFilterModel());
+
+    const request: GridRequest = { startRow, endRow, sortModel, filterModel };
+    const apiUrl = getApiBaseUrl();
+
     const res = await fetch(`${apiUrl}${endpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -136,6 +136,9 @@ export async function refreshVisibleRows<T>(
 
     // Update rendered nodes in place — no flicker
     const renderedNodes = api.getRenderedNodes();
+    if (!renderedNodes) {
+      return;
+    }
     for (const node of renderedNodes) {
       const idx = node.rowIndex;
       if (idx != null && idx >= startRow) {
