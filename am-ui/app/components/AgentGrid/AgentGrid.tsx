@@ -12,7 +12,7 @@ import type { AgentRow, AgentState } from '../../types';
 import '../../lib/agGridSetup';
 import { AGENT_STATUS_COLORS } from '../../lib/statusColors';
 import { formatDuration, formatTime, calculateDuration } from '../../lib/formatters';
-import { createGridDatasource } from '../../lib/gridDatasource';
+import { createGridDatasource, refreshVisibleRows } from '../../lib/gridDatasource';
 import { DefaultCellRenderer, LoadingSkeleton } from '../LoadingCellRenderer/LoadingCellRenderer';
 
 // Status cell renderer with colored chip
@@ -208,11 +208,12 @@ export function AgentGrid() {
     cellRenderer: DefaultCellRenderer,
   }), []);
 
-  // Refresh data from server every 5 seconds
+  // Refresh visible rows from server every 5 seconds.
+  // Updates nodes in place via setData() — no cache purge, no loading flicker.
   React.useEffect(() => {
     const interval = setInterval(() => {
       if (gridRef.current?.api) {
-        gridRef.current.api.refreshInfiniteCache();
+        refreshVisibleRows(gridRef.current.api, '/agents/query', 100);
       }
     }, 5000);
     return () => clearInterval(interval);

@@ -19,7 +19,7 @@ import type { Call, CallState, QueuedCall, QueueStats } from '../../types';
 import '../../lib/agGridSetup';
 import { CALL_STATE_COLORS, PRIORITY_COLORS } from '../../lib/statusColors';
 import { formatDuration, calculateDuration } from '../../lib/formatters';
-import { createGridDatasource } from '../../lib/gridDatasource';
+import { createGridDatasource, refreshVisibleRows } from '../../lib/gridDatasource';
 import { DefaultCellRenderer, LoadingSkeleton } from '../../components/LoadingCellRenderer/LoadingCellRenderer';
 
 // Call state cell renderer
@@ -189,11 +189,24 @@ export default function CallsPage() {
     cellRenderer: DefaultCellRenderer,
   }), []);
 
-  // Refresh data from server every 5 seconds
+  // Refresh visible rows from server every 5 seconds.
+  // Updates nodes in place via setData() — no cache purge, no loading flicker.
   React.useEffect(() => {
     const interval = setInterval(() => {
-      queuedGridRef.current?.api?.refreshInfiniteCache();
-      activeGridRef.current?.api?.refreshInfiniteCache();
+      if (queuedGridRef.current?.api) {
+        refreshVisibleRows(queuedGridRef.current.api, '/queue/query', 100, (meta) => {
+          setQueueStats({
+            queuedCount: (meta.queuedCount as number) || 0,
+            avgWaitSeconds: (meta.avgWaitSeconds as number) || 0,
+            longestWaitSeconds: (meta.longestWaitSeconds as number) || 0,
+          });
+        });
+      }
+      if (activeGridRef.current?.api) {
+        refreshVisibleRows(activeGridRef.current.api, '/calls/query', 100, (meta) => {
+          setActiveCallCount((meta.activeCallCount as number) || 0);
+        });
+      }
     }, 5000);
     return () => clearInterval(interval);
   }, []);
