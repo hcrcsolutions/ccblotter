@@ -93,12 +93,18 @@ export function createGridDatasource<T>(options: GridDatasourceOptions<T>): IDat
  * Fetches fresh data for the currently visible rows and updates them in place
  * via node.setData(). No cache purge — old data stays visible until the
  * response arrives, so there is no loading flicker.
+ *
+ * @param countKey Optional metadata key holding the total row count (e.g.
+ *   'queuedCount'). When provided and the count differs from the grid's
+ *   current row count, refreshInfiniteCache() is called instead of setData()
+ *   so that added/removed rows are picked up.
  */
 export async function refreshVisibleRows<T>(
   api: GridApi,
   endpoint: string,
   cacheBlockSize: number,
   onMetadata?: (metadata: Record<string, unknown>) => void,
+  countKey?: string,
 ): Promise<void> {
   try {
     const firstRow = api.getFirstDisplayedRowIndex();
@@ -134,16 +140,23 @@ export async function refreshVisibleRows<T>(
       onMetadata(data.metadata);
     }
 
-    // Update rendered nodes in place — no flicker
-    const renderedNodes = api.getRenderedNodes();
-    if (!renderedNodes) {
-      return;
+    // If total row count changed, reload cache to pick up added/removed rows.
+    // refreshInfiniteCache keeps old data visible while blocks reload.
+    if (countKey && data.metadata?.[countKey] != null) {
+      const serverCount = data.metadata[countKey] as number;
+      const gridCount = api.getDisplayedRowCount();
+      if (serverCount !== gridCount) {
+        api.refreshInfiniteCache();
+        return;
+      }
     }
-    for (const node of renderedNodes) {
-      const idx = node.rowIndex;
-      if (idx != null && idx >= startRow) {
-        const dataIdx = idx - startRow;
-        if (dataIdx >= 0 && dataIdx < data.rows.length) {
+
+    // Same row count — update visible nodes in place (no flicker)
+    for (let i = firstRow; i <= lastRow; i++) {
+      const dataIdx = i - startRow;
+      if (dataIdx >= 0 && dataIdx < data.rows.length) {
+        const node = api.getDisplayedRowAtIndex(i);
+        if (node) {
           node.setData(data.rows[dataIdx]);
         }
       }

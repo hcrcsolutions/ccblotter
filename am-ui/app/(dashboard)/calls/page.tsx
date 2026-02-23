@@ -200,12 +200,12 @@ export default function CallsPage() {
             avgWaitSeconds: (meta.avgWaitSeconds as number) || 0,
             longestWaitSeconds: (meta.longestWaitSeconds as number) || 0,
           });
-        });
+        }, 'queuedCount');
       }
       if (activeGridRef.current?.api) {
         refreshVisibleRows(activeGridRef.current.api, '/calls/query', 100, (meta) => {
           setActiveCallCount((meta.activeCallCount as number) || 0);
-        });
+        }, 'activeCallCount');
       }
     }, 2000);
     return () => clearInterval(interval);
