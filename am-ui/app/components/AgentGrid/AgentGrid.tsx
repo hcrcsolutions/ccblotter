@@ -80,13 +80,22 @@ function IdleTimeCellRenderer(params: ICellRendererParams<AgentRow>) {
   );
 }
 
-export function AgentGrid() {
+interface AgentGridProps {
+  onMetadata?: (metadata: Record<string, unknown>) => void;
+}
+
+export function AgentGrid({ onMetadata }: AgentGridProps) {
   const theme = useTheme();
   const gridRef = React.useRef<AgGridReact<AgentRow>>(null);
+  const onMetadataRef = React.useRef(onMetadata);
+  onMetadataRef.current = onMetadata;
 
   // Create datasource for infinite row model
   const datasource = React.useMemo(
-    () => createGridDatasource<AgentRow>({ endpoint: '/agents/query' }),
+    () => createGridDatasource<AgentRow>({
+      endpoint: '/agents/query',
+      onMetadata: (meta) => onMetadataRef.current?.(meta),
+    }),
     []
   );
 
@@ -213,7 +222,7 @@ export function AgentGrid() {
   React.useEffect(() => {
     const interval = setInterval(() => {
       if (gridRef.current?.api) {
-        refreshVisibleRows(gridRef.current.api, '/agents/query', 100);
+        refreshVisibleRows(gridRef.current.api, '/agents/query', 100, (meta) => onMetadataRef.current?.(meta), 'agentCount');
       }
     }, 2000);
     return () => clearInterval(interval);

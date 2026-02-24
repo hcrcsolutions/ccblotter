@@ -274,7 +274,6 @@ export interface AgentRow {
  * Note: agents, calls, queuedCalls, queueStats are now fetched via REST grid endpoints.
  */
 export interface DashboardState {
-  summary: AgentSummary;
   systemStatus: SystemStatus;
   connectionState: ConnectionState;
   infrastructure: InfrastructureTopology;

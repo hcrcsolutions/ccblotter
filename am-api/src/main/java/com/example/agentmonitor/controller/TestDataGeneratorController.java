@@ -54,9 +54,6 @@ public class TestDataGeneratorController {
                     .build();
 
             agentService.saveAgent(agent);
-            agentService.broadcastAgents();
-            agentService.broadcastSummary();
-
             return ResponseEntity.ok(agent);
         } catch (Exception e) {
             log.error("Failed to create test agent", e);
@@ -139,8 +136,6 @@ public class TestDataGeneratorController {
     public ResponseEntity<Void> deleteTestAgent(@PathVariable String agentId) {
         try {
             agentService.removeAgent(agentId);
-            agentService.broadcastAgents();
-            agentService.broadcastSummary();
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             log.error("Failed to delete test agent", e);

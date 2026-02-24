@@ -174,12 +174,6 @@ public class DataGeneratorService {
 
         log.info("Data generation complete. Created {} agents with {} active calls and {} queued calls.",
                 agents.size(), onCallAgentIds.size(), queuedCallCount);
-
-        // Broadcast updates
-        agentService.broadcastAgents();
-        agentService.broadcastSummary();
-        callService.broadcastCalls();
-        queueService.broadcastQueue();
     }
 
     /**
@@ -492,8 +486,5 @@ public class DataGeneratorService {
         long elapsed = System.currentTimeMillis() - start;
         log.info("Bulk generation complete in {}ms: {} agents, {} calls, {} queued",
                 elapsed, agentCount, onCallCount, queueCount);
-
-        // Broadcast summary
-        agentService.broadcastSummary();
     }
 }

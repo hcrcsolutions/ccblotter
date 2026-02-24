@@ -6,13 +6,23 @@ import { useWebSocketContext } from '../../context/WebSocketContext';
 import { AgentStatusCards } from '../../components/AgentStatusCards/AgentStatusCards';
 import { AgentGrid } from '../../components/AgentGrid/AgentGrid';
 import { ErrorBanner } from '../../components/ErrorBanner/ErrorBanner';
+import type { AgentSummary } from '../../types';
 
 export default function AgentsPage() {
-  const {
-    summary,
-    systemStatus,
-    connectionState,
-  } = useWebSocketContext();
+  const { systemStatus, connectionState } = useWebSocketContext();
+  const [summary, setSummary] = React.useState<AgentSummary>({
+    online: 0, onCall: 0, away: 0, unavailable: 0, total: 0,
+  });
+
+  const handleMetadata = React.useCallback((meta: Record<string, unknown>) => {
+    setSummary({
+      online: (meta.online as number) || 0,
+      onCall: (meta.onCall as number) || 0,
+      away: (meta.away as number) || 0,
+      unavailable: (meta.unavailable as number) || 0,
+      total: (meta.total as number) || 0,
+    });
+  }, []);
 
   const showError = !systemStatus.redisConnected || connectionState === 'error';
 
@@ -35,7 +45,7 @@ export default function AgentsPage() {
 
           {/* Agent Grid */}
           <Box sx={{ mt: 3, flex: 1, minHeight: 0 }}>
-            <AgentGrid />
+            <AgentGrid onMetadata={handleMetadata} />
           </Box>
         </>
       )}

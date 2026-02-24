@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Client, IMessage, StompSubscription } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import type {
-  AgentSummary,
   SystemStatus,
   ConnectionState,
   DashboardState,
@@ -12,7 +11,6 @@ import type {
   InfrastructureSummary,
 } from '../types';
 import {
-  isValidAgentSummary,
   isValidSystemStatus,
   isValidInfrastructureTopology,
   safeParseJson,
@@ -21,14 +19,6 @@ import { getBackendUrl, getApiBaseUrl } from '../lib/settings';
 
 const MAX_RECONNECT_ATTEMPTS = 5;
 const INITIAL_RECONNECT_DELAY = 1000;
-
-const initialSummary: AgentSummary = {
-  online: 0,
-  onCall: 0,
-  away: 0,
-  unavailable: 0,
-  total: 0,
-};
 
 const initialSystemStatus: SystemStatus = {
   redisConnected: true,
@@ -175,11 +165,10 @@ function calculateInfrastructureSummary(topology: InfrastructureTopology): Infra
 /**
  * WebSocket hook for real-time dashboard updates.
  *
- * Subscribes to lightweight topics only: summary, system status, infrastructure.
- * Agents, calls, and queue data are fetched via REST grid endpoints.
+ * Subscribes to system status and infrastructure topics.
+ * Agents, calls, queue, and summary data are fetched via REST endpoints.
  */
 export function useWebSocket(): DashboardState {
-  const [summary, setSummary] = useState<AgentSummary>(initialSummary);
   const [systemStatus, setSystemStatus] = useState<SystemStatus>(initialSystemStatus);
   const [connectionState, setConnectionState] = useState<ConnectionState>('connecting');
   const [infrastructure, setInfrastructure] = useState<InfrastructureTopology>(initialInfrastructure);
@@ -201,26 +190,11 @@ export function useWebSocket(): DashboardState {
     console.log('Fetching initial data via REST API...', apiUrl);
 
     const results = await Promise.allSettled([
-      fetch(`${apiUrl}/agents/summary`),
       fetch(`${apiUrl}/health`),
       fetch(`${apiUrl}/infrastructure`),
     ]);
 
-    const [summaryResult, healthResult, infrastructureResult] = results;
-
-    // Process summary
-    if (summaryResult.status === 'fulfilled' && summaryResult.value.ok) {
-      try {
-        const summaryData = await summaryResult.value.json();
-        if (isMountedRef.current) {
-          setSummary(summaryData);
-        }
-      } catch (e) {
-        console.error('Failed to parse summary response:', e);
-      }
-    } else if (summaryResult.status === 'rejected') {
-      console.error('Failed to fetch summary:', summaryResult.reason);
-    }
+    const [healthResult, infrastructureResult] = results;
 
     // Process health
     if (healthResult.status === 'fulfilled' && healthResult.value.ok) {
@@ -310,14 +284,7 @@ export function useWebSocket(): DashboardState {
           }
         };
 
-        // Subscribe to lightweight topics only (summary, system, infrastructure)
-        const summarySub = client.subscribe('/topic/summary', (message: IMessage) => {
-          if (!isMountedRef.current) return;
-          const data = safeParseJson(message.body, isValidAgentSummary);
-          handleParseResult(data, 'summary', setSummary);
-        });
-        subscriptionsRef.current.push(summarySub);
-
+        // Subscribe to lightweight topics (system, infrastructure)
         const systemSub = client.subscribe('/topic/system', (message: IMessage) => {
           if (!isMountedRef.current) return;
           const data = safeParseJson(message.body, isValidSystemStatus);
@@ -427,7 +394,6 @@ export function useWebSocket(): DashboardState {
   }, [connect]);
 
   return {
-    summary,
     systemStatus,
     connectionState,
     infrastructure,

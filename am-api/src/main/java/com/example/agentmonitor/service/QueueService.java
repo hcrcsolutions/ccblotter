@@ -9,7 +9,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -31,7 +30,6 @@ public class QueueService {
     private static final String QUEUE_CALLS_KEY = "queue:calls";
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final SimpMessagingTemplate messagingTemplate;
     private final RedisHealthService healthService;
     private final ObjectMapper objectMapper;
 
@@ -208,21 +206,6 @@ public class QueueService {
         redisTemplate.delete(QUEUE_CALLS_KEY);
 
         log.info("Cleared all queued calls");
-    }
-
-    /**
-     * Broadcast current queue to all connected clients.
-     */
-    public void broadcastQueue() {
-        List<QueuedCall> calls = getQueuedCalls();
-        Map<String, Object> stats = getQueueStats();
-
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("calls", calls);
-        payload.put("stats", stats);
-
-        log.debug("Broadcasting {} queued calls", calls.size());
-        messagingTemplate.convertAndSend("/topic/queue", (Object) payload);
     }
 
     private void ensureRedisAvailable() {

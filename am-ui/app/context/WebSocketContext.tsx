@@ -6,13 +6,6 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import type { DashboardState } from '../types';
 
 const initialState: DashboardState = {
-  summary: {
-    online: 0,
-    onCall: 0,
-    away: 0,
-    unavailable: 0,
-    total: 0,
-  },
   systemStatus: {
     redisConnected: true,
     lastUpdated: new Date().toISOString(),

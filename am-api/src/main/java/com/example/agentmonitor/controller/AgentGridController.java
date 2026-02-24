@@ -98,6 +98,20 @@ public class AgentGridController {
             GridResponse<AgentRow> response = gridFilterService.applyFilterSortPage(
                     rows, request, FIELD_ACCESSORS, customFilters);
 
+            // Summary counts for status cards (unfiltered)
+            long online = agents.stream().filter(a -> a.getState() == AgentState.ONLINE).count();
+            long onCall = agents.stream().filter(a -> a.getState() == AgentState.ON_CALL).count();
+            long away = agents.stream().filter(a -> a.getState() == AgentState.AWAY).count();
+            long unavailable = agents.stream().filter(a -> a.getState() == AgentState.UNAVAILABLE).count();
+            response.setMetadata(Map.of(
+                    "online", online,
+                    "onCall", onCall,
+                    "away", away,
+                    "unavailable", unavailable,
+                    "total", (long) agents.size(),
+                    "agentCount", (long) agents.size()
+            ));
+
             return ResponseEntity.ok(response);
         } catch (RedisUnavailableException e) {
             return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build();

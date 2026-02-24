@@ -12,7 +12,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -44,7 +43,6 @@ public class CallService {
     private static final String ACTIVE_CALLS_KEY = "calls:active";
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final SimpMessagingTemplate messagingTemplate;
     private final AgentService agentService;
     private final RedisHealthService healthService;
     private final ObjectMapper objectMapper;
@@ -229,15 +227,6 @@ public class CallService {
         redisTemplate.opsForHash().putAll(CALL_KEY_PREFIX + callId, callMap);
 
         log.info("Call {} state changed to {}", callId, newState);
-    }
-
-    /**
-     * Broadcast current calls list to all connected clients.
-     */
-    public void broadcastCalls() {
-        List<Call> calls = getActiveCalls();
-        log.debug("Broadcasting {} active calls", calls.size());
-        messagingTemplate.convertAndSend("/topic/calls", calls);
     }
 
     /**

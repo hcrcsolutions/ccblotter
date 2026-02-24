@@ -1,8 +1,6 @@
 package com.example.agentmonitor.controller;
 
-import com.example.agentmonitor.model.AgentSummary;
 import com.example.agentmonitor.model.SystemStatus;
-import com.example.agentmonitor.service.AgentService;
 import com.example.agentmonitor.service.RedisHealthService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 @Slf4j
 public class WebSocketController {
 
-    private final AgentService agentService;
     private final RedisHealthService healthService;
     private final SimpMessagingTemplate messagingTemplate;
 
@@ -94,14 +91,7 @@ public class WebSocketController {
 
             if (!status.isRedisConnected()) {
                 log.warn("Redis unavailable - not broadcasting data");
-                return;
             }
-
-            // Broadcast summary only (agents/calls/queue now fetched via REST grid endpoints)
-            AgentSummary summary = agentService.getAgentSummary();
-            messagingTemplate.convertAndSend("/topic/summary", summary);
-
-            log.debug("Broadcast complete: summary sent");
         } catch (Exception e) {
             log.error("Error during broadcast", e);
             // Broadcast error status

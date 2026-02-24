@@ -11,7 +11,6 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -38,7 +37,6 @@ public class AgentService {
     private static final String AGENTS_ALL_KEY = "agents:all";
 
     private final RedisTemplate<String, Object> redisTemplate;
-    private final SimpMessagingTemplate messagingTemplate;
     private final RedisHealthService healthService;
     private final ObjectMapper objectMapper;
 
@@ -238,24 +236,6 @@ public class AgentService {
             }
             log.info("Removed agent: {}", agentId);
         }
-    }
-
-    /**
-     * Broadcast current agent list to all connected clients.
-     */
-    public void broadcastAgents() {
-        List<Agent> agents = getAllAgents();
-        log.debug("Broadcasting {} agents", agents.size());
-        messagingTemplate.convertAndSend("/topic/agents", agents);
-    }
-
-    /**
-     * Broadcast current agent summary to all connected clients.
-     */
-    public void broadcastSummary() {
-        AgentSummary summary = getAgentSummary();
-        log.debug("Broadcasting summary: {}", summary);
-        messagingTemplate.convertAndSend("/topic/summary", summary);
     }
 
     private void ensureRedisAvailable() {
