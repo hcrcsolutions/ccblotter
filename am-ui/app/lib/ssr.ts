@@ -6,7 +6,7 @@
  * Check if code is running in browser environment.
  * Use this for one-time checks (not reactive).
  */
-export function isBrowser(): boolean {
+function isBrowser(): boolean {
   return typeof window !== 'undefined';
 }
 
@@ -22,7 +22,7 @@ export function isServer(): boolean {
  * Safely access localStorage with fallback.
  * Returns null if not in browser or if localStorage is not available.
  */
-export function safeLocalStorage(): Storage | null {
+function safeLocalStorage(): Storage | null {
   if (!isBrowser()) return null;
   try {
     return window.localStorage;

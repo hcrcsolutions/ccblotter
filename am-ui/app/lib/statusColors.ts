@@ -176,7 +176,7 @@ export const SERVER_HEALTH_COLORS: Record<ServerHealthStatus, StatusColorSet> = 
 /**
  * Quality indicator colors (for latency, jitter, etc.)
  */
-export const QUALITY_COLORS = {
+const QUALITY_COLORS = {
   GOOD: {
     light: { bg: 'hsl(120, 70%, 92%)', text: 'hsl(120, 60%, 30%)' },
     dark: { bg: 'hsl(120, 50%, 20%)', text: 'hsl(120, 60%, 65%)' },
@@ -206,7 +206,7 @@ export const SESSION_BREAKDOWN_COLORS = {
 /**
  * Sparkline trend colors
  */
-export const TREND_COLORS = {
+const TREND_COLORS = {
   UP: {
     light: 'hsl(120, 70%, 40%)',
     dark: 'hsl(120, 60%, 55%)',

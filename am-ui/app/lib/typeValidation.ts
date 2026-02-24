@@ -4,12 +4,6 @@
  */
 
 import type {
-  Agent,
-  AgentState,
-  Call,
-  CallState,
-  QueuedCall,
-  QueueStats,
   AgentSummary,
   SystemStatus,
   InfraServerType,
@@ -20,8 +14,6 @@ import type {
   InfrastructureSummary,
 } from '../types';
 
-const VALID_AGENT_STATES: AgentState[] = ['ONLINE', 'ON_CALL', 'AWAY', 'UNAVAILABLE'];
-const VALID_CALL_STATES: CallState[] = ['TALKING', 'ON_HOLD'];
 const VALID_INFRA_SERVER_TYPES: InfraServerType[] = ['TRUNK', 'SBC', 'SIP', 'MEDIA'];
 const VALID_HEALTH_STATUSES: ServerHealthStatus[] = ['HEALTHY', 'DEGRADED', 'UNHEALTHY', 'UNKNOWN'];
 
@@ -45,77 +37,6 @@ function isStringOrNull(value: unknown): value is string | null {
   return value === null || typeof value === 'string';
 }
 
-function isNumberOrNull(value: unknown): value is number | null {
-  return value === null || (typeof value === 'number' && !isNaN(value));
-}
-
-export function isValidAgentState(value: unknown): value is AgentState {
-  return isString(value) && VALID_AGENT_STATES.includes(value as AgentState);
-}
-
-export function isValidCallState(value: unknown): value is CallState {
-  return isString(value) && VALID_CALL_STATES.includes(value as CallState);
-}
-
-export function isValidAgent(value: unknown): value is Agent {
-  if (!isObject(value)) return false;
-  return (
-    isString(value.id) &&
-    isString(value.name) &&
-    isValidAgentState(value.state) &&
-    isString(value.stateChangedAt) &&
-    isStringOrNull(value.currentCallId) &&
-    isStringOrNull(value.lastCallOriginator) &&
-    isStringOrNull(value.lastCallStartTime) &&
-    isStringOrNull(value.lastCallEndTime) &&
-    isNumberOrNull(value.lastCallDurationSeconds)
-  );
-}
-
-export function isValidAgentArray(value: unknown): value is Agent[] {
-  return Array.isArray(value) && value.every(isValidAgent);
-}
-
-export function isValidCall(value: unknown): value is Call {
-  if (!isObject(value)) return false;
-  return (
-    isString(value.id) &&
-    isString(value.originator) &&
-    isString(value.agentId) &&
-    isString(value.agentName) &&
-    isString(value.startTime) &&
-    isValidCallState(value.state)
-  );
-}
-
-export function isValidCallArray(value: unknown): value is Call[] {
-  return Array.isArray(value) && value.every(isValidCall);
-}
-
-export function isValidQueuedCall(value: unknown): value is QueuedCall {
-  if (!isObject(value)) return false;
-  return (
-    isString(value.id) &&
-    isString(value.originator) &&
-    isString(value.queuedAt) &&
-    isNumber(value.priority) &&
-    isString(value.skill)
-  );
-}
-
-export function isValidQueuedCallArray(value: unknown): value is QueuedCall[] {
-  return Array.isArray(value) && value.every(isValidQueuedCall);
-}
-
-export function isValidQueueStats(value: unknown): value is QueueStats {
-  if (!isObject(value)) return false;
-  return (
-    isNumber(value.queuedCount) &&
-    isNumber(value.avgWaitSeconds) &&
-    isNumber(value.longestWaitSeconds)
-  );
-}
-
 export function isValidAgentSummary(value: unknown): value is AgentSummary {
   if (!isObject(value)) return false;
   return (
@@ -133,16 +54,6 @@ export function isValidSystemStatus(value: unknown): value is SystemStatus {
     isBoolean(value.redisConnected) &&
     isString(value.lastUpdated) &&
     isStringOrNull(value.errorMessage)
-  );
-}
-
-export function isValidQueueMessage(value: unknown): value is { calls: QueuedCall[]; stats: QueueStats } {
-  if (!isObject(value)) return false;
-  const calls = value.calls;
-  const stats = value.stats;
-  return (
-    (Array.isArray(calls) && calls.every(isValidQueuedCall)) &&
-    isValidQueueStats(stats)
   );
 }
 
