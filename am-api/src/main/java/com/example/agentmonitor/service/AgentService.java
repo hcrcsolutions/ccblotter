@@ -170,9 +170,6 @@ public class AgentService {
         redisTemplate.opsForSet().add(AGENTS_BY_STATE_PREFIX + newState.name(), agentId);
 
         log.info("Agent {} state changed: {} -> {}", agentId, oldState, newState);
-
-        // Broadcast summary only (agents are now fetched via REST grid endpoint)
-        broadcastSummary();
     }
 
     /**

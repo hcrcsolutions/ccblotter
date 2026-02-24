@@ -109,6 +109,9 @@ public class SimulationService {
             simulateBreaks(agents, onCallRatio);
             simulateLogins(agents);
 
+            // Broadcast summary once after all state changes (not per-event)
+            agentService.broadcastSummary();
+
         } catch (Exception e) {
             log.error("Simulation tick error: {}", e.getMessage());
         }
