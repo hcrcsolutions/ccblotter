@@ -49,13 +49,15 @@ function CallStateCellRenderer(params: ICellRendererParams) {
 export function ActiveCallGrid({ onMetadata }: ActiveCallGridProps) {
   const theme = useTheme();
   const gridRef = React.useRef<AgGridReact>(null);
+  const onMetadataRef = React.useRef(onMetadata);
+  onMetadataRef.current = onMetadata;
 
   const datasource = React.useMemo(
     () => createGridDatasource<Call>({
       endpoint: '/calls/query',
-      onMetadata,
+      onMetadata: (meta) => onMetadataRef.current?.(meta),
     }),
-    [onMetadata]
+    []
   );
 
   const columnDefs = React.useMemo<ColDef[]>(() => [
@@ -82,11 +84,11 @@ export function ActiveCallGrid({ onMetadata }: ActiveCallGridProps) {
   React.useEffect(() => {
     const interval = setInterval(() => {
       if (gridRef.current?.api) {
-        refreshVisibleRows(gridRef.current.api, '/calls/query', 100, onMetadata, 'activeCallCount');
+        refreshVisibleRows(gridRef.current.api, '/calls/query', 100, (meta) => onMetadataRef.current?.(meta), 'activeCallCount');
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [onMetadata]);
+  }, []);
 
   // Refresh computed cells every second for live durations
   React.useEffect(() => {

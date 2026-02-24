@@ -76,13 +76,15 @@ function WaitTimeCellRenderer(params: ICellRendererParams) {
 export function QueuedCallGrid({ onMetadata }: QueuedCallGridProps) {
   const theme = useTheme();
   const gridRef = React.useRef<AgGridReact>(null);
+  const onMetadataRef = React.useRef(onMetadata);
+  onMetadataRef.current = onMetadata;
 
   const datasource = React.useMemo(
     () => createGridDatasource<QueuedCall>({
       endpoint: '/queue/query',
-      onMetadata,
+      onMetadata: (meta) => onMetadataRef.current?.(meta),
     }),
-    [onMetadata]
+    []
   );
 
   const columnDefs = React.useMemo<ColDef[]>(() => [
@@ -117,11 +119,11 @@ export function QueuedCallGrid({ onMetadata }: QueuedCallGridProps) {
   React.useEffect(() => {
     const interval = setInterval(() => {
       if (gridRef.current?.api) {
-        refreshVisibleRows(gridRef.current.api, '/queue/query', 100, onMetadata, 'queuedCount');
+        refreshVisibleRows(gridRef.current.api, '/queue/query', 100, (meta) => onMetadataRef.current?.(meta), 'queuedCount');
       }
     }, 2000);
     return () => clearInterval(interval);
-  }, [onMetadata]);
+  }, []);
 
   // Refresh computed cells every second for live wait times
   React.useEffect(() => {
