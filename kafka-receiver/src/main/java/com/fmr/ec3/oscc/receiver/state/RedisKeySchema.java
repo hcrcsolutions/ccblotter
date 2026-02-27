@@ -73,6 +73,19 @@ public final class RedisKeySchema {
         return INFRA_NODE_PREFIX + nodeId + ":alarm";
     }
 
+    // IVR keys (matching am-api IvrSessionService)
+    public static final String IVR_SESSION_KEY_PREFIX = "ivr:session:";
+    public static final String IVR_SESSIONS_ALL_KEY = "ivr:sessions:all";
+    public static final String IVR_STEPS_KEY_SUFFIX = ":steps";
+
+    public static String ivrSessionKey(String sessionId) {
+        return IVR_SESSION_KEY_PREFIX + sessionId;
+    }
+
+    public static String ivrStepsKey(String sessionId) {
+        return IVR_SESSION_KEY_PREFIX + sessionId + IVR_STEPS_KEY_SUFFIX;
+    }
+
     // Watchdog leader election
     public static final String WATCHDOG_LOCK = "receiver:watchdog:lock";
 }

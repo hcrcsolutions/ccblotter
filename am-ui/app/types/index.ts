@@ -223,6 +223,67 @@ export interface InfrastructureSummary {
 }
 
 // ============================================================================
+// IVR Types
+// ============================================================================
+
+/**
+ * IVR session states matching backend enum.
+ */
+export type IvrState = 'ACTIVE' | 'AUTHENTICATING' | 'TRANSFERRING' | 'COMPLETED' | 'ABANDONED' | 'FAILED';
+
+/**
+ * IVR step types matching backend enum.
+ */
+export type IvrStepType = 'PLAY' | 'SAY' | 'CAPTURE' | 'AUTHENTICATE' | 'TRANSFER' | 'HANGUP' | 'BRANCH';
+
+/**
+ * IVR session row from grid query.
+ */
+export interface IvrSessionRow {
+  id: string;
+  callId: string;
+  originator: string;
+  flowId: string;
+  state: IvrState;
+  currentStep: string;
+  stepCount: number;
+  startTime: string;
+  endTime: string | null;
+  authenticated: boolean;
+}
+
+/**
+ * Single step in an IVR session (from detail endpoint).
+ */
+export interface IvrStep {
+  id: string;
+  sessionId: string;
+  stepType: IvrStepType;
+  stepName: string;
+  prompt: string | null;
+  input: string | null;
+  outcome: string;
+  startTime: string;
+  endTime: string;
+  latencyMs: number;
+  retryAttempt: number;
+  error: string | null;
+  audioUrl: string | null;
+}
+
+/**
+ * Summary of IVR session states for dashboard cards.
+ */
+export interface IvrSessionSummary {
+  active: number;
+  authenticating: number;
+  completed: number;
+  abandoned: number;
+  failed: number;
+  total: number;
+}
+
+// ============================================================================
 // Grid Types - For AG Grid infinite row model (server-side pagination)
 // ============================================================================
 

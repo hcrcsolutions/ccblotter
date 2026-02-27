@@ -6,7 +6,7 @@
  * Each color set has both light and dark mode variants.
  */
 
-import type { InfraServerType, ServerHealthStatus } from '../types';
+import type { InfraServerType, IvrState, ServerHealthStatus } from '../types';
 
 // =============================================================================
 // THRESHOLD CONSTANTS
@@ -81,6 +81,42 @@ export const CALL_STATE_COLORS: Record<string, StatusColorSet> = {
     light: { bg: 'hsl(45, 100%, 90%)', text: 'hsl(45, 80%, 30%)' },
     dark: { bg: 'hsl(45, 60%, 22%)', text: 'hsl(45, 90%, 65%)' },
     label: 'On Hold',
+  },
+};
+
+/**
+ * IVR session state colors
+ */
+export const IVR_STATE_COLORS: Record<IvrState, StatusColorSet> = {
+  ACTIVE: {
+    light: { bg: 'hsl(180, 70%, 92%)', text: 'hsl(180, 60%, 30%)' },
+    dark: { bg: 'hsl(180, 50%, 20%)', text: 'hsl(180, 60%, 65%)' },
+    label: 'Active',
+  },
+  AUTHENTICATING: {
+    light: { bg: 'hsl(210, 100%, 92%)', text: 'hsl(210, 100%, 35%)' },
+    dark: { bg: 'hsl(210, 70%, 25%)', text: 'hsl(210, 90%, 70%)' },
+    label: 'Authenticating',
+  },
+  TRANSFERRING: {
+    light: { bg: 'hsl(270, 80%, 94%)', text: 'hsl(270, 70%, 40%)' },
+    dark: { bg: 'hsl(270, 50%, 22%)', text: 'hsl(270, 70%, 70%)' },
+    label: 'Transferring',
+  },
+  COMPLETED: {
+    light: { bg: 'hsl(120, 80%, 92%)', text: 'hsl(120, 59%, 30%)' },
+    dark: { bg: 'hsl(120, 50%, 20%)', text: 'hsl(120, 70%, 65%)' },
+    label: 'Completed',
+  },
+  ABANDONED: {
+    light: { bg: 'hsl(30, 100%, 92%)', text: 'hsl(30, 80%, 30%)' },
+    dark: { bg: 'hsl(30, 60%, 22%)', text: 'hsl(30, 90%, 65%)' },
+    label: 'Abandoned',
+  },
+  FAILED: {
+    light: { bg: 'hsl(0, 90%, 92%)', text: 'hsl(0, 70%, 35%)' },
+    dark: { bg: 'hsl(0, 60%, 25%)', text: 'hsl(0, 80%, 70%)' },
+    label: 'Failed',
   },
 };
 

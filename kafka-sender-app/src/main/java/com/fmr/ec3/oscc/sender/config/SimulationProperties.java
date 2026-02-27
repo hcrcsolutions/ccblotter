@@ -13,6 +13,7 @@ public class SimulationProperties {
     private long heartbeatIntervalMs = 5000;
     private int sipServerCount = 4;
     private int mediaServerCount = 120;
+    private long ivrTickIntervalMs = 3000;
 
     public int getAgentCount() {
         return agentCount;
@@ -60,5 +61,13 @@ public class SimulationProperties {
 
     public void setMediaServerCount(int mediaServerCount) {
         this.mediaServerCount = mediaServerCount;
+    }
+
+    public long getIvrTickIntervalMs() {
+        return ivrTickIntervalMs;
+    }
+
+    public void setIvrTickIntervalMs(long ivrTickIntervalMs) {
+        this.ivrTickIntervalMs = ivrTickIntervalMs;
     }
 }

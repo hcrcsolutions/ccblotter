@@ -15,6 +15,11 @@ public final class EventType {
     public static final String CALL_ABANDONED = "CALL_ABANDONED";
     public static final String CALL_HOLD_CHANGED = "CALL_HOLD_CHANGED";
 
+    // IVR events
+    public static final String IVR_SESSION_STARTED = "IVR_SESSION_STARTED";
+    public static final String IVR_STEP_COMPLETED = "IVR_STEP_COMPLETED";
+    public static final String IVR_SESSION_ENDED = "IVR_SESSION_ENDED";
+
     // Infrastructure events
     public static final String NODE_REGISTERED = "NODE_REGISTERED";
     public static final String NODE_HEARTBEAT = "NODE_HEARTBEAT";

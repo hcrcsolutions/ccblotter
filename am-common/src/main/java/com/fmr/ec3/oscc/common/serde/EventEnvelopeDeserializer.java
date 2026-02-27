@@ -3,6 +3,7 @@ package com.fmr.ec3.oscc.common.serde;
 import com.fmr.ec3.oscc.common.EventEnvelope;
 import com.fmr.ec3.oscc.common.EventType;
 import com.fmr.ec3.oscc.common.payload.infra.*;
+import com.fmr.ec3.oscc.common.payload.ivr.*;
 import com.fmr.ec3.oscc.common.payload.sip.*;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -28,6 +29,9 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
         Map.entry(EventType.CALL_ENDED, CallEndedPayload.class),
         Map.entry(EventType.CALL_ABANDONED, CallAbandonedPayload.class),
         Map.entry(EventType.CALL_HOLD_CHANGED, CallHoldChangedPayload.class),
+        Map.entry(EventType.IVR_SESSION_STARTED, IvrSessionStartedPayload.class),
+        Map.entry(EventType.IVR_STEP_COMPLETED, IvrStepCompletedPayload.class),
+        Map.entry(EventType.IVR_SESSION_ENDED, IvrSessionEndedPayload.class),
         Map.entry(EventType.NODE_REGISTERED, NodeRegisteredPayload.class),
         Map.entry(EventType.NODE_HEARTBEAT, NodeHeartbeatPayload.class),
         Map.entry(EventType.NODE_DEREGISTERED, NodeDeregisteredPayload.class),

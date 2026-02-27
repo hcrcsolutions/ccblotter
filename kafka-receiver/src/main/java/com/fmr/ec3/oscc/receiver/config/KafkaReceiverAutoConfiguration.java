@@ -3,13 +3,16 @@ package com.fmr.ec3.oscc.receiver.config;
 import com.fmr.ec3.oscc.receiver.EventDeduplicator;
 import com.fmr.ec3.oscc.receiver.OrphanedStateWatchdog;
 import com.fmr.ec3.oscc.receiver.handler.InfraEventHandler;
+import com.fmr.ec3.oscc.receiver.handler.IvrEventHandler;
 import com.fmr.ec3.oscc.receiver.handler.SipEventHandler;
 import com.fmr.ec3.oscc.receiver.listener.InfraHeartbeatListener;
 import com.fmr.ec3.oscc.receiver.listener.InfraLifecycleListener;
+import com.fmr.ec3.oscc.receiver.listener.IvrEventListener;
 import com.fmr.ec3.oscc.receiver.listener.SipEventListener;
 import com.fmr.ec3.oscc.receiver.state.AgentStateWriter;
 import com.fmr.ec3.oscc.receiver.state.CallStateWriter;
 import com.fmr.ec3.oscc.receiver.state.InfraStateWriter;
+import com.fmr.ec3.oscc.receiver.state.IvrStateWriter;
 import com.fmr.ec3.oscc.receiver.state.QueueStateWriter;
 import com.fmr.ec3.oscc.receiver.websocket.WebSocketBroadcaster;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
@@ -62,6 +65,12 @@ public class KafkaReceiverAutoConfiguration {
         return new QueueStateWriter(redisTemplate);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public IvrStateWriter ivrStateWriter(StringRedisTemplate redisTemplate) {
+        return new IvrStateWriter(redisTemplate);
+    }
+
     // ── WebSocket ────────────────────────────────────────────────────
 
     @Bean
@@ -100,6 +109,12 @@ public class KafkaReceiverAutoConfiguration {
         return new InfraEventHandler(infraWriter, broadcaster);
     }
 
+    @Bean
+    @ConditionalOnMissingBean
+    public IvrEventHandler ivrEventHandler(IvrStateWriter ivrWriter) {
+        return new IvrEventHandler(ivrWriter);
+    }
+
     // ── Kafka listeners ──────────────────────────────────────────────
 
     @Bean
@@ -124,6 +139,14 @@ public class KafkaReceiverAutoConfiguration {
             EventDeduplicator deduplicator,
             InfraEventHandler handler) {
         return new InfraLifecycleListener(deduplicator, handler);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public IvrEventListener ivrEventListener(
+            EventDeduplicator deduplicator,
+            IvrEventHandler handler) {
+        return new IvrEventListener(deduplicator, handler);
     }
 
     // ── Watchdog ─────────────────────────────────────────────────────

@@ -15,6 +15,7 @@ simulation:
   heartbeat-interval-ms: 5000
   sip-server-count: 4
   media-server-count: 120
+  ivr-tick-interval-ms: 3000
 
 logging:
   level:
