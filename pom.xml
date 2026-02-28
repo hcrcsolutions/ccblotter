@@ -23,6 +23,7 @@
         <module>kafka-receiver</module>
         <module>sip-server-integration</module>
         <module>media-server-integration</module>
+        <module>audiocapture</module>
     </modules>
 
     <properties>
