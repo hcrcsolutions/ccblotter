@@ -7,6 +7,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.Instant;
@@ -50,6 +51,34 @@ public class GlobalExceptionHandler {
         body.put("fieldErrors", fieldErrors);
         body.put("timestamp", Instant.now().toString());
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(RecordingNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleRecordingNotFound(RecordingNotFoundException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "RECORDING_NOT_FOUND");
+        body.put("message", ex.getMessage());
+        body.put("filename", ex.getFilename());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(InvalidRecordingException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidRecording(InvalidRecordingException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "INVALID_RECORDING");
+        body.put("message", ex.getMessage());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "FILE_TOO_LARGE");
+        body.put("message", "File exceeds maximum upload size");
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(body);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

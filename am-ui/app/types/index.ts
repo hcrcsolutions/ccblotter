@@ -284,6 +284,24 @@ export interface IvrSessionSummary {
 }
 
 // ============================================================================
+// Recording Types
+// ============================================================================
+
+/**
+ * A WAV recording uploaded for IVR prompt playback.
+ */
+export interface Recording {
+  filename: string;
+  sizeBytes: number;
+  durationSeconds: number;
+  sampleRate: number;
+  channels: number;
+  bitsPerSample: number;
+  uploadedAt: string; // ISO timestamp
+  url: string;
+}
+
+// ============================================================================
 // Grid Types - For AG Grid infinite row model (server-side pagination)
 // ============================================================================
 
