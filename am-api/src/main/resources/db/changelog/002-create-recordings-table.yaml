@@ -1,0 +1,39 @@
+databaseChangeLog:
+  - changeSet:
+      id: 6
+      author: am-api
+      comment: Create recordings table for WAV file metadata
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: recordings
+            columns:
+              - column:
+                  name: filename
+                  type: VARCHAR(255)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: size_bytes
+                  type: BIGINT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: duration_seconds
+                  type: DOUBLE
+              - column:
+                  name: sample_rate
+                  type: INT
+              - column:
+                  name: channels
+                  type: INT
+              - column:
+                  name: bits_per_sample
+                  type: INT
+              - column:
+                  name: uploaded_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false

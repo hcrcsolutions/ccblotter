@@ -127,9 +127,11 @@ export default function RecordingsPage() {
     }
   };
 
-  const handlePlayToggle = (filename: string) => {
-    const url = `${getBackendUrl()}/api/recordings/${encodeURIComponent(filename)}`;
-    play(filename, url);
+  const handlePlayToggle = (rec: Recording) => {
+    const url = rec.url.startsWith('http')
+      ? rec.url
+      : `${getBackendUrl()}${rec.url}`;
+    play(rec.filename, url);
   };
 
   return (
@@ -224,7 +226,7 @@ export default function RecordingsPage() {
                       <TableCell align="right">
                         <IconButton
                           size="small"
-                          onClick={() => handlePlayToggle(rec.filename)}
+                          onClick={() => handlePlayToggle(rec)}
                           color={playingStepId === rec.filename ? 'primary' : 'default'}
                         >
                           {playingStepId === rec.filename ? (

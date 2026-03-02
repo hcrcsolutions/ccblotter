@@ -1,3 +1,5 @@
 databaseChangeLog:
   - include:
       file: db/changelog/001-create-infrastructure-tables.yaml
+  - include:
+      file: db/changelog/002-create-recordings-table.yaml

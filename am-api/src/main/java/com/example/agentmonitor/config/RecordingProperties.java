@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class RecordingProperties {
 
     /**
-     * Directory where WAV recordings are stored.
+     * Directory where WAV recordings are stored (local mode).
      */
     private String storageDir = "./recordings";
 
@@ -18,4 +18,29 @@ public class RecordingProperties {
      * Maximum allowed file size in bytes (default 50 MB).
      */
     private long maxFileSizeBytes = 52428800L;
+
+    /**
+     * Storage backend: "local" or "webdav".
+     */
+    private String storage = "local";
+
+    /**
+     * Public base URL for serving recordings (WebDAV mode).
+     */
+    private String baseUrl = "";
+
+    /**
+     * WebDAV server URL for file operations.
+     */
+    private String webdavUrl = "";
+
+    /**
+     * WebDAV Basic auth username.
+     */
+    private String webdavUsername = "";
+
+    /**
+     * WebDAV Basic auth password.
+     */
+    private String webdavPassword = "";
 }
