@@ -34,6 +34,16 @@ services:
       - kafka_data:/var/lib/kafka/data
     restart: unless-stopped
 
+  webdav:
+    build: ./webdav
+    container_name: ccblotter-webdav
+    ports:
+      - "8888:443"
+    volumes:
+      - webdav_data:/data/recordings
+    restart: unless-stopped
+
 volumes:
   redis_data:
   kafka_data:
+  webdav_data:

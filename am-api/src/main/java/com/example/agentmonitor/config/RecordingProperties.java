@@ -43,4 +43,9 @@ public class RecordingProperties {
      * WebDAV Basic auth password.
      */
     private String webdavPassword = "";
+
+    /**
+     * Skip SSL certificate verification for WebDAV (dev only).
+     */
+    private boolean webdavInsecureSsl = false;
 }

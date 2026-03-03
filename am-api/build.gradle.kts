@@ -40,6 +40,9 @@ dependencies {
     // Kafka (optional, for external events)
     implementation("org.springframework.kafka:spring-kafka")
 
+    // HTTP client (for WebDAV SSL support)
+    implementation("org.apache.httpcomponents.client5:httpclient5")
+
     // Utilities
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     compileOnly("org.projectlombok:lombok")
