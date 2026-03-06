@@ -24,6 +24,7 @@ import HubIcon from '@mui/icons-material/Hub';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import GraphicEqIcon from '@mui/icons-material/GraphicEq';
+import RecordVoiceOverIcon from '@mui/icons-material/RecordVoiceOver';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useThemeContext } from '../../context/ThemeContext';
 
@@ -41,6 +42,7 @@ const NAVIGATION: NavItem[] = [
   { segment: 'calls', title: 'Calls', icon: <PhoneInTalkIcon sx={{ fontSize: 24 }} /> },
   { segment: 'ivr', title: 'IVR Sessions', icon: <SmartToyIcon sx={{ fontSize: 24 }} /> },
   { segment: 'recordings', title: 'Recordings', icon: <GraphicEqIcon sx={{ fontSize: 24 }} /> },
+  { segment: 'tts', title: 'TTS Tester', icon: <RecordVoiceOverIcon sx={{ fontSize: 24 }} /> },
   { segment: 'topology', title: 'Topology', icon: <HubIcon sx={{ fontSize: 24 }} /> },
   { segment: 'editor', title: 'Editor', icon: <EditNoteIcon sx={{ fontSize: 24 }} /> },
   { segment: 'settings', title: 'Settings', icon: <SettingsIcon sx={{ fontSize: 24 }} /> },
@@ -53,6 +55,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/topology': 'Topology',
   '/editor': 'Infrastructure Editor',
   '/recordings': 'Recordings',
+  '/tts': 'TTS Tester',
   '/settings': 'Settings',
 };
 

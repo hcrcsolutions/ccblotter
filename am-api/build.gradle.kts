@@ -20,6 +20,7 @@ configurations {
 }
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
@@ -39,6 +40,11 @@ dependencies {
 
     // Kafka (optional, for external events)
     implementation("org.springframework.kafka:spring-kafka")
+
+    // TTS (Amazon Polly)
+    implementation("com.fmr.ec3.oscc:tts:0.1.0-SNAPSHOT")
+    implementation(platform("software.amazon.awssdk:bom:2.31.6"))
+    implementation("software.amazon.awssdk:sts")
 
     // HTTP client (for WebDAV SSL support)
     implementation("org.apache.httpcomponents.client5:httpclient5")
