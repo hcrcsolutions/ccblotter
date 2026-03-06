@@ -23,11 +23,15 @@ public class SipServerNode {
 
     private final EventProducer eventProducer;
     private final SipServerProperties props;
+    private final InteractionStore interactionStore;
     private final Random random = new Random();
 
-    public SipServerNode(EventProducer eventProducer, SipServerProperties props) {
+    public SipServerNode(EventProducer eventProducer,
+                         SipServerProperties props,
+                         InteractionStore interactionStore) {
         this.eventProducer = eventProducer;
         this.props = props;
+        this.interactionStore = interactionStore;
     }
 
     @PostConstruct
@@ -52,8 +56,9 @@ public class SipServerNode {
     public void sendHeartbeat() {
         String nodeId = props.getNodeId();
         int maxSessions = props.getMaxSessions();
-        int activeSessions = random.nextInt(maxSessions + 1);
-        double utilization = (double) activeSessions / maxSessions;
+        int activeSessions = interactionStore.getActiveSessions();
+        double utilization = maxSessions > 0
+                ? (double) activeSessions / maxSessions : 0;
 
         NodeMetricsDto metrics = new NodeMetricsDto(
             clamp(round(20 + utilization * 50 + random.nextGaussian() * 5), 0, 100),
@@ -65,14 +70,7 @@ public class SipServerNode {
             Math.max(10, 45 - (int) (utilization * 10))
         );
 
-        SessionBreakdownDto breakdown = new SessionBreakdownDto(
-            (int) (activeSessions * 0.7),
-            (int) (activeSessions * 0.3),
-            (int) (activeSessions * 0.1),
-            (int) (activeSessions * 0.15),
-            (int) (activeSessions * 0.65),
-            (int) (activeSessions * 0.1)
-        );
+        SessionBreakdownDto breakdown = interactionStore.getSessionBreakdown();
 
         eventProducer.send(
             KafkaTopics.INFRA_HEARTBEATS, nodeId,
