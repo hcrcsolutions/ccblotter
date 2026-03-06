@@ -120,12 +120,18 @@ export default function TtsPage() {
           <TextField
             label="Text or SSML"
             multiline
-            minRows={6}
-            maxRows={16}
             fullWidth
             value={text}
             onChange={(e) => setText(e.target.value)}
-            sx={{ mb: 2, '& textarea': { fontFamily: 'monospace', fontSize: '0.875rem' } }}
+            InputLabelProps={{ shrink: true }}
+            sx={{
+              mb: 2,
+              '& .MuiInputBase-root': {
+                minHeight: '200px',
+                alignItems: 'flex-start',
+              },
+              '& textarea': { fontFamily: 'monospace', fontSize: '0.875rem' },
+            }}
           />
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
