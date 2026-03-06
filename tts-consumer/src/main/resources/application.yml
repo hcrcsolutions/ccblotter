@@ -1,0 +1,15 @@
+server:
+  port: 8084
+
+tts:
+  default-voice-id: Joanna
+  engine: neural
+  sample-rate: 8000
+  cache-enabled: true
+  cache-max-entries: 100
+  aws-region: us-east-1
+
+logging:
+  level:
+    com.fmr.ec3.oscc.ttsconsumer: DEBUG
+    software.amazon.awssdk: WARN

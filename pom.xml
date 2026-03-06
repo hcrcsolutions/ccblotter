@@ -25,6 +25,7 @@
         <module>media-server-integration</module>
         <module>audiocapture</module>
         <module>tts</module>
+        <module>tts-consumer</module>
     </modules>
 
     <properties>
