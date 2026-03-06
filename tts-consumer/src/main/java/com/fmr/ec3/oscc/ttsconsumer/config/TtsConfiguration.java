@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.polly.PollyClient;
 
@@ -19,6 +20,7 @@ public class TtsConfiguration {
     public PollyClient pollyClient(TtsProperties props) {
         return PollyClient.builder()
                 .region(Region.of(props.getAwsRegion()))
+                .credentialsProvider(DefaultCredentialsProvider.create())
                 .build();
     }
 

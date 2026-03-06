@@ -8,8 +8,7 @@ import com.fmr.ec3.oscc.tts.TtsRequest;
 import com.fmr.ec3.oscc.tts.TtsResult;
 import com.fmr.ec3.oscc.tts.cache.CacheKey;
 import com.fmr.ec3.oscc.tts.cache.TtsCache;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.sync.ResponseTransformer;
 import software.amazon.awssdk.services.polly.PollyClient;
@@ -23,9 +22,8 @@ import java.util.Optional;
 /**
  * TTS engine backed by Amazon Polly. Produces 8kHz 16-bit signed PCM mono audio.
  */
+@Slf4j
 public class PollyTtsEngine implements TtsEngine {
-
-    private static final Logger LOG = LoggerFactory.getLogger(PollyTtsEngine.class);
 
     private final PollyClient pollyClient;
     private final PollyTtsConfig config;
@@ -44,7 +42,7 @@ public class PollyTtsEngine implements TtsEngine {
             CacheKey key = CacheKey.of(request.getText(), voiceId, config.getEngine());
             Optional<TtsResult> cached = cache.get(key);
             if (cached.isPresent()) {
-                LOG.debug("Cache hit for voice={}", voiceId);
+                log.debug("Cache hit for voice={}", voiceId);
                 return cached.get();
             }
             TtsResult result = callPolly(request.getText(), voiceId);
@@ -76,7 +74,7 @@ public class PollyTtsEngine implements TtsEngine {
             byte[] pcmAudio = response.asByteArray();
             long durationMs = (pcmAudio.length / 2) * 1000L / config.getSampleRate();
 
-            LOG.debug("Synthesized {} bytes, {}ms, voice={}", pcmAudio.length, durationMs, voiceId);
+            log.debug("Synthesized {} bytes, {}ms, voice={}", pcmAudio.length, durationMs, voiceId);
             return new TtsResult(pcmAudio, durationMs, false);
         } catch (TtsException e) {
             throw e;
