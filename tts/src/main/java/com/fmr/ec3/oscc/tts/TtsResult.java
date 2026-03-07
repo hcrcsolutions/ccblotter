@@ -10,13 +10,13 @@ public class TtsResult {
     private final boolean fromCache;
 
     public TtsResult(byte[] pcmAudio, long durationMs, boolean fromCache) {
-        this.pcmAudio = pcmAudio;
+        this.pcmAudio = pcmAudio == null ? null : pcmAudio.clone();
         this.durationMs = durationMs;
         this.fromCache = fromCache;
     }
 
     public byte[] getPcmAudio() {
-        return pcmAudio;
+        return pcmAudio == null ? null : pcmAudio.clone();
     }
 
     public long getDurationMs() {
