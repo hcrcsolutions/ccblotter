@@ -26,6 +26,7 @@
         <module>audiocapture</module>
         <module>tts</module>
         <module>tts-consumer</module>
+        <module>audio-store</module>
     </modules>
 
     <properties>
