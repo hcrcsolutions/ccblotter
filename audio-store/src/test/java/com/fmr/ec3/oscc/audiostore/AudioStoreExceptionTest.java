@@ -25,4 +25,29 @@ class AudioStoreExceptionTest {
     void isRuntimeException() {
         assertThat(new AudioStoreException("x")).isInstanceOf(RuntimeException.class);
     }
+
+    @Test
+    void canBeCaughtAsRuntimeException() {
+        try {
+            throw new AudioStoreException("test");
+        } catch (RuntimeException e) {
+            assertThat(e).isInstanceOf(AudioStoreException.class);
+        }
+    }
+
+    @Test
+    void preservesCauseChain() {
+        IllegalStateException root = new IllegalStateException("root");
+        RuntimeException mid = new RuntimeException("mid", root);
+        AudioStoreException ex = new AudioStoreException("top", mid);
+
+        assertThat(ex.getCause()).isSameAs(mid);
+        assertThat(ex.getCause().getCause()).isSameAs(root);
+    }
+
+    @Test
+    void nullMessage() {
+        AudioStoreException ex = new AudioStoreException(null);
+        assertThat(ex.getMessage()).isNull();
+    }
 }

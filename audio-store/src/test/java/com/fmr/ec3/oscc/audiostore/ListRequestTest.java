@@ -63,4 +63,62 @@ class ListRequestTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("maxResults");
     }
+
+    @Test
+    void acceptsMinBoundaryMaxResults() {
+        ListRequest request = ListRequest.builder()
+                .sessionId("session-1")
+                .maxResults(1)
+                .build();
+
+        assertThat(request.getMaxResults()).isEqualTo(1);
+    }
+
+    @Test
+    void acceptsMaxBoundaryMaxResults() {
+        ListRequest request = ListRequest.builder()
+                .sessionId("session-1")
+                .maxResults(1000)
+                .build();
+
+        assertThat(request.getMaxResults()).isEqualTo(1000);
+    }
+
+    @Test
+    void rejectsInvalidSessionId() {
+        assertThatThrownBy(() -> ListRequest.builder()
+                .sessionId("../evil")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid characters");
+    }
+
+    @Test
+    void rejectsBlankSessionId() {
+        assertThatThrownBy(() -> ListRequest.builder()
+                .sessionId("  ")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sessionId");
+    }
+
+    @Test
+    void rejectsLargeNegativeMaxResults() {
+        assertThatThrownBy(() -> ListRequest.builder()
+                .sessionId("session-1")
+                .maxResults(Integer.MIN_VALUE)
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxResults");
+    }
+
+    @Test
+    void rejectsLargePositiveMaxResults() {
+        assertThatThrownBy(() -> ListRequest.builder()
+                .sessionId("session-1")
+                .maxResults(Integer.MAX_VALUE)
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("maxResults");
+    }
 }

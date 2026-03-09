@@ -85,4 +85,93 @@ class UploadRequestTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("invalid characters");
     }
+
+    @Test
+    void rejectsInvalidAudioId() {
+        assertThatThrownBy(() -> UploadRequest.builder()
+                .sessionId("session-1")
+                .audioId("utt/bad")
+                .data(new byte[]{1})
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid characters");
+    }
+
+    @Test
+    void rejectsBlankSessionId() {
+        assertThatThrownBy(() -> UploadRequest.builder()
+                .sessionId("  ")
+                .audioId("utt-1")
+                .data(new byte[]{1})
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sessionId");
+    }
+
+    @Test
+    void rejectsBlankAudioId() {
+        assertThatThrownBy(() -> UploadRequest.builder()
+                .sessionId("session-1")
+                .audioId("")
+                .data(new byte[]{1})
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("audioId");
+    }
+
+    @Test
+    void rejectsDotDotSessionId() {
+        assertThatThrownBy(() -> UploadRequest.builder()
+                .sessionId("..")
+                .audioId("utt-1")
+                .data(new byte[]{1})
+                .build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectsDotDotAudioId() {
+        assertThatThrownBy(() -> UploadRequest.builder()
+                .sessionId("session-1")
+                .audioId("..")
+                .data(new byte[]{1})
+                .build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void dataIsNotDefensivelyCopied() {
+        byte[] data = {1, 2, 3};
+        UploadRequest request = UploadRequest.builder()
+                .sessionId("session-1")
+                .audioId("utt-1")
+                .data(data)
+                .build();
+
+        assertThat(request.getData()).isSameAs(data);
+    }
+
+    @Test
+    void acceptsLargeData() {
+        byte[] data = new byte[1024 * 1024];
+        UploadRequest request = UploadRequest.builder()
+                .sessionId("session-1")
+                .audioId("utt-1")
+                .data(data)
+                .build();
+
+        assertThat(request.getData()).hasSize(1024 * 1024);
+    }
+
+    @Test
+    void acceptsSessionIdWithDotsAndDashes() {
+        UploadRequest request = UploadRequest.builder()
+                .sessionId("session-1.0")
+                .audioId("audio_file-2.wav")
+                .data(new byte[]{1})
+                .build();
+
+        assertThat(request.getSessionId()).isEqualTo("session-1.0");
+        assertThat(request.getAudioId()).isEqualTo("audio_file-2.wav");
+    }
 }

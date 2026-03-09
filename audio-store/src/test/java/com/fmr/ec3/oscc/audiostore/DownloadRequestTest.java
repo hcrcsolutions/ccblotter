@@ -45,4 +45,63 @@ class DownloadRequestTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("invalid characters");
     }
+
+    @Test
+    void rejectsBlankSessionId() {
+        assertThatThrownBy(() -> DownloadRequest.builder()
+                .sessionId("")
+                .audioId("utt-1")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("sessionId");
+    }
+
+    @Test
+    void rejectsBlankAudioId() {
+        assertThatThrownBy(() -> DownloadRequest.builder()
+                .sessionId("session-1")
+                .audioId("  ")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("audioId");
+    }
+
+    @Test
+    void rejectsInvalidSessionId() {
+        assertThatThrownBy(() -> DownloadRequest.builder()
+                .sessionId("sess/bad")
+                .audioId("utt-1")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("invalid characters");
+    }
+
+    @Test
+    void rejectsDotDotSessionId() {
+        assertThatThrownBy(() -> DownloadRequest.builder()
+                .sessionId("..")
+                .audioId("utt-1")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void rejectsDotDotAudioId() {
+        assertThatThrownBy(() -> DownloadRequest.builder()
+                .sessionId("session-1")
+                .audioId("..")
+                .build())
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void acceptsIdsWithDotsAndDashes() {
+        DownloadRequest request = DownloadRequest.builder()
+                .sessionId("sess-1.0")
+                .audioId("file_name-2.wav")
+                .build();
+
+        assertThat(request.getSessionId()).isEqualTo("sess-1.0");
+        assertThat(request.getAudioId()).isEqualTo("file_name-2.wav");
+    }
 }

@@ -61,4 +61,36 @@ class S3AudioStoreConfigTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("s3Client is required");
     }
+
+    @Test
+    void rejectsEmptyBucket() {
+        assertThatThrownBy(() -> S3AudioStoreConfig.builder()
+                .bucket("")
+                .s3Client(mock(S3AsyncClient.class))
+                .build())
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("bucket is required");
+    }
+
+    @Test
+    void defaultPrefixIsEmpty() {
+        S3AudioStoreConfig config = S3AudioStoreConfig.builder()
+                .bucket("b")
+                .s3Client(mock(S3AsyncClient.class))
+                .build();
+
+        assertThat(config.getPrefix()).isEqualTo("");
+    }
+
+    @Test
+    void prefixCanBeOverridden() {
+        S3AudioStoreConfig config = S3AudioStoreConfig.builder()
+                .bucket("b")
+                .prefix("p1")
+                .prefix("p2")
+                .s3Client(mock(S3AsyncClient.class))
+                .build();
+
+        assertThat(config.getPrefix()).isEqualTo("p2");
+    }
 }
