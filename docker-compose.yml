@@ -43,6 +43,19 @@ services:
       - webdav_data:/data/recordings
     restart: unless-stopped
 
+  ivr-server:
+    build:
+      context: .
+      dockerfile: ivr-server/Dockerfile
+    container_name: ccblotter-ivr-server
+    ports:
+      - "8082:8082"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - kafka
+    restart: unless-stopped
+
 volumes:
   redis_data:
   kafka_data:

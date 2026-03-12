@@ -35,7 +35,9 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
         Map.entry(EventType.NODE_REGISTERED, NodeRegisteredPayload.class),
         Map.entry(EventType.NODE_HEARTBEAT, NodeHeartbeatPayload.class),
         Map.entry(EventType.NODE_DEREGISTERED, NodeDeregisteredPayload.class),
-        Map.entry(EventType.NODE_ALARM, NodeAlarmPayload.class)
+        Map.entry(EventType.NODE_ALARM, NodeAlarmPayload.class),
+        Map.entry(EventType.IVR_FLOW_PUBLISHED, IvrFlowPublishedPayload.class),
+        Map.entry(EventType.IVR_FLOW_UNPUBLISHED, IvrFlowUnpublishedPayload.class)
     );
 
     public EventEnvelopeDeserializer() {

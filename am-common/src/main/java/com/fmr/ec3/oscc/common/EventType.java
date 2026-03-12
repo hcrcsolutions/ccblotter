@@ -20,6 +20,10 @@ public final class EventType {
     public static final String IVR_STEP_COMPLETED = "IVR_STEP_COMPLETED";
     public static final String IVR_SESSION_ENDED = "IVR_SESSION_ENDED";
 
+    // IVR flow management events
+    public static final String IVR_FLOW_PUBLISHED = "IVR_FLOW_PUBLISHED";
+    public static final String IVR_FLOW_UNPUBLISHED = "IVR_FLOW_UNPUBLISHED";
+
     // Infrastructure events
     public static final String NODE_REGISTERED = "NODE_REGISTERED";
     public static final String NODE_HEARTBEAT = "NODE_HEARTBEAT";

@@ -8,4 +8,5 @@ public final class KafkaTopics {
     public static final String IVR_EVENTS = "ccblotter.ivr.events";
     public static final String INFRA_HEARTBEATS = "ccblotter.infra.heartbeats";
     public static final String INFRA_LIFECYCLE = "ccblotter.infra.lifecycle";
+    public static final String IVR_FLOWS = "ccblotter.ivr.flows";
 }

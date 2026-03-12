@@ -38,8 +38,12 @@ dependencies {
     // Migrations
     implementation("org.liquibase:liquibase-core")
 
-    // Kafka (optional, for external events)
+    // Kafka
     implementation("org.springframework.kafka:spring-kafka")
+    implementation("com.fmr.ec3.oscc:kafka-sender:0.1.0-SNAPSHOT")
+
+    // IVR Flow Engine
+    implementation("com.fmr.ec3.oscc:am-ivr:0.1.0-SNAPSHOT")
 
     // TTS (Amazon Polly)
     implementation("com.fmr.ec3.oscc:tts:0.1.0-SNAPSHOT")
