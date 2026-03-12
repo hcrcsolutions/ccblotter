@@ -443,3 +443,114 @@ export interface NodeSummary {
   availableCapacity: number;
   lastHeartbeat: string | null;
 }
+
+// ============================================================================
+// IVR Flow Types
+// ============================================================================
+
+/**
+ * IVR flow node types matching backend enum.
+ */
+export type IvrNodeType =
+  | 'PLAY_PROMPT'
+  | 'COLLECT_DTMF'
+  | 'MENU'
+  | 'TRANSFER'
+  | 'HANGUP'
+  | 'SET_VARIABLE'
+  | 'CONDITION'
+  | 'SUB_FLOW'
+
+  | 'WAIT'
+  | 'HTTP_REQUEST'
+  | 'ASR_COLLECT'
+  | 'NLU_INTENT';
+
+/**
+ * IVR flow publication status.
+ */
+export type IvrFlowStatus = 'DRAFT' | 'PUBLISHED';
+
+/**
+ * IVR flow summary from list API.
+ */
+export interface IvrFlowSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  version: number;
+  status: IvrFlowStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * IVR flow node for the visual editor.
+ */
+export interface IvrFlowNode {
+  id: string;
+  type: IvrNodeType;
+  label: string;
+  position: { x: number; y: number };
+  config: Record<string, unknown>;
+}
+
+/**
+ * IVR flow edge for the visual editor.
+ */
+export interface IvrFlowEdge {
+  id: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  condition: string | null;
+}
+
+/**
+ * IVR flow variable declaration.
+ */
+export interface IvrFlowVariable {
+  name: string;
+  type: 'STRING' | 'INTEGER' | 'BOOLEAN' | 'DECIMAL';
+  defaultValue: string | null;
+}
+
+/**
+ * IVR flow content (nodes + edges + variables).
+ */
+export interface IvrFlowContent {
+  flowId: string;
+  version: number;
+  content: string;
+  createdAt: string;
+  createdBy: string | null;
+}
+
+/**
+ * IVR flow content version metadata.
+ */
+export interface IvrFlowVersion {
+  version: number;
+  createdAt: string;
+  createdBy: string | null;
+}
+
+/**
+ * IVR flow validation issue.
+ */
+export interface IvrValidationIssue {
+  severity: 'ERROR' | 'WARNING';
+  nodeId: string | null;
+  code: string;
+  message: string;
+}
+
+/**
+ * Result of publishing an IVR flow.
+ */
+export interface IvrPublishResult {
+  flowId: string;
+  published: boolean;
+  version: number;
+  validationIssues: IvrValidationIssue[];
+  message: string;
+}

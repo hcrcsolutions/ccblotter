@@ -27,6 +27,8 @@
         <module>tts</module>
         <module>tts-consumer</module>
         <module>audio-store</module>
+        <module>am-ivr</module>
+        <module>ivr-server</module>
     </modules>
 
     <properties>

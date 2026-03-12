@@ -72,6 +72,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 
+    @ExceptionHandler(IvrFlowNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleIvrFlowNotFound(IvrFlowNotFoundException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "IVR_FLOW_NOT_FOUND");
+        body.put("message", ex.getMessage());
+        body.put("flowId", ex.getFlowId().toString());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(IvrFlowValidationException.class)
+    public ResponseEntity<Map<String, Object>> handleIvrFlowValidation(IvrFlowValidationException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "IVR_FLOW_VALIDATION_FAILED");
+        body.put("message", ex.getMessage());
+        body.put("validationIssues", ex.getValidationIssues());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
+    }
+
+    @ExceptionHandler(IvrFlowConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleIvrFlowConflict(IvrFlowConflictException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "IVR_FLOW_CONFLICT");
+        body.put("message", ex.getMessage());
+        body.put("flowId", ex.getFlowId().toString());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         Map<String, Object> body = new HashMap<>();

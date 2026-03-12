@@ -1,0 +1,137 @@
+databaseChangeLog:
+  - changeSet:
+      id: 7
+      author: am-api
+      comment: Create ivr_flows table for IVR flow definitions
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: ivr_flows
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: version
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: DRAFT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: entry_node_id
+                  type: VARCHAR(50)
+              - column:
+                  name: max_session_duration_seconds
+                  type: INT
+                  defaultValueNumeric: 600
+                  constraints:
+                    nullable: false
+              - column:
+                  name: max_steps
+                  type: INT
+                  defaultValueNumeric: 100
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: >
+              ALTER TABLE osccstate.ivr_flows
+              ADD CONSTRAINT chk_ivr_flow_status
+              CHECK (status IN ('DRAFT', 'PUBLISHED'))
+
+  - changeSet:
+      id: 8
+      author: am-api
+      comment: Create ivr_flow_content table for versioned flow content
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: ivr_flow_content
+            columns:
+              - column:
+                  name: flow_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: JSONB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+        - addPrimaryKey:
+            schemaName: osccstate
+            tableName: ivr_flow_content
+            columnNames: flow_id, version
+            constraintName: pk_ivr_flow_content
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: ivr_flow_content
+            baseColumnNames: flow_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: ivr_flows
+            referencedColumnNames: id
+            constraintName: fk_ivr_flow_content_flow
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 9
+      author: am-api
+      comment: Add indexes for IVR flow queries
+      changes:
+        - createIndex:
+            schemaName: osccstate
+            tableName: ivr_flows
+            indexName: idx_ivr_flows_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: osccstate
+            tableName: ivr_flows
+            indexName: idx_ivr_flows_updated_at
+            columns:
+              - column:
+                  name: updated_at
