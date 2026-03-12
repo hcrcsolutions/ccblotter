@@ -10,16 +10,14 @@ import com.fmr.ec3.oscc.ivr.model.FlowDefinition;
 import com.fmr.ec3.oscc.ivr.model.FlowNode;
 import com.fmr.ec3.oscc.ivr.server.dto.ExecuteNodeRequest;
 import com.fmr.ec3.oscc.ivr.server.dto.ExecuteNodeResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 
+@Slf4j
 @Service
 public class NodeExecutionService {
-
-    private static final Logger log = LoggerFactory.getLogger(NodeExecutionService.class);
 
     private final FlowCacheService flowCacheService;
     private final HttpNodeExecutor httpNodeExecutor = new HttpNodeExecutor();

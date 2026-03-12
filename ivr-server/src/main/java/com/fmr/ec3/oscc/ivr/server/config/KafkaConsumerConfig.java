@@ -5,8 +5,7 @@ import com.fmr.ec3.oscc.common.serde.EventEnvelopeDeserializer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,10 +18,9 @@ import org.springframework.util.backoff.FixedBackOff;
 
 import java.util.Map;
 
+@Slf4j
 @Configuration
 public class KafkaConsumerConfig {
-
-    private static final Logger log = LoggerFactory.getLogger(KafkaConsumerConfig.class);
 
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
