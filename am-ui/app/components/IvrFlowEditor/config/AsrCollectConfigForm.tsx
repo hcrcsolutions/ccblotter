@@ -20,7 +20,21 @@ export function AsrCollectConfigForm({ config, onChange }: Props) {
 
   return (
     <Stack spacing={2}>
-      <TextField label="Prompt" size="small" fullWidth multiline minRows={2} {...field('prompt')} />
+      <TextField
+        label="Prompt"
+        size="small"
+        fullWidth
+        multiline
+        InputLabelProps={{ shrink: true }}
+        sx={{
+          '& .MuiInputBase-root': {
+            minHeight: '100px',
+            alignItems: 'flex-start',
+          },
+          '& textarea': { fontFamily: 'monospace', fontSize: '0.875rem' },
+        }}
+        {...field('prompt')}
+      />
       <TextField label="Language" size="small" fullWidth {...field('language')} />
       <TextField
         label="Timeout (seconds)"

@@ -31,7 +31,14 @@ export function HttpRequestConfigForm({ config, onChange }: Props) {
         size="small"
         fullWidth
         multiline
-        minRows={3}
+        InputLabelProps={{ shrink: true }}
+        sx={{
+          '& .MuiInputBase-root': {
+            minHeight: '100px',
+            alignItems: 'flex-start',
+          },
+          '& textarea': { fontFamily: 'monospace', fontSize: '0.875rem' },
+        }}
         {...field('bodyTemplate')}
       />
       <TextField
