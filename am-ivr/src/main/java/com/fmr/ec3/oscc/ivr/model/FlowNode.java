@@ -1,5 +1,6 @@
 package com.fmr.ec3.oscc.ivr.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
 
@@ -10,21 +11,24 @@ import java.util.Map;
 /**
  * Immutable node in an IVR flow. Built via {@link #builder()}.
  * Node-type-specific configuration is stored as a generic map in {@code config}.
+ *
+ * <p>The raw content JSON may contain editor-only properties
+ * such as {@code position} that are not part of the runtime
+ * model; they are silently ignored during deserialization.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonDeserialize(builder = FlowNode.Builder.class)
 public class FlowNode {
 
     private final String id;
     private final NodeType type;
     private final String label;
-    private final Position position;
     private final Map<String, Object> config;
 
     private FlowNode(Builder builder) {
         this.id = builder.id;
         this.type = builder.type;
         this.label = builder.label;
-        this.position = builder.position;
         this.config = builder.config == null
                 ? Collections.emptyMap()
                 : Collections.unmodifiableMap(new LinkedHashMap<>(builder.config));
@@ -46,21 +50,17 @@ public class FlowNode {
         return label;
     }
 
-    public Position getPosition() {
-        return position;
-    }
-
     public Map<String, Object> getConfig() {
         return config;
     }
 
+    @JsonIgnoreProperties(ignoreUnknown = true)
     @JsonPOJOBuilder(withPrefix = "")
     public static final class Builder {
 
         private String id;
         private NodeType type;
         private String label;
-        private Position position;
         private Map<String, Object> config;
 
         Builder() {
@@ -78,11 +78,6 @@ public class FlowNode {
 
         public Builder label(String label) {
             this.label = label;
-            return this;
-        }
-
-        public Builder position(Position position) {
-            this.position = position;
             return this;
         }
 

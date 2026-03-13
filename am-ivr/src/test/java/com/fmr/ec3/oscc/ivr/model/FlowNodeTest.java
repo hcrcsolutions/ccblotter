@@ -19,25 +19,21 @@ class FlowNodeTest {
         assertThat(node.getId()).isEqualTo("n1");
         assertThat(node.getType()).isEqualTo(NodeType.PLAY_PROMPT);
         assertThat(node.getLabel()).isNull();
-        assertThat(node.getPosition()).isNull();
         assertThat(node.getConfig()).isEmpty();
     }
 
     @Test
     void buildFullNode() {
-        Position pos = new Position(100, 200);
         Map<String, Object> config = Map.of("audioUrl", "http://example.com/audio.wav");
 
         FlowNode node = FlowNode.builder()
                 .id("n1")
                 .type(NodeType.PLAY_PROMPT)
                 .label("Welcome")
-                .position(pos)
                 .config(config)
                 .build();
 
         assertThat(node.getLabel()).isEqualTo("Welcome");
-        assertThat(node.getPosition()).isEqualTo(pos);
         assertThat(node.getConfig()).containsEntry("audioUrl", "http://example.com/audio.wav");
     }
 

@@ -5,7 +5,7 @@ import com.fmr.ec3.oscc.ivr.model.FlowEdge;
 import com.fmr.ec3.oscc.ivr.model.FlowNode;
 import com.fmr.ec3.oscc.ivr.model.FlowVariable;
 import com.fmr.ec3.oscc.ivr.model.NodeType;
-import com.fmr.ec3.oscc.ivr.model.Position;
+
 import com.fmr.ec3.oscc.ivr.model.VariableType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -304,7 +304,6 @@ class FlowValidatorTest {
         return FlowNode.builder()
                 .id(id)
                 .type(type)
-                .position(new Position(0, 0))
                 .build();
     }
 
