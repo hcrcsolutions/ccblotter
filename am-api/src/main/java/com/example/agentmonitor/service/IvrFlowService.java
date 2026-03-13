@@ -6,32 +6,27 @@ import com.example.agentmonitor.dto.request.UpdateFlowRequest;
 import com.example.agentmonitor.dto.response.*;
 import com.example.agentmonitor.entity.IvrFlowContentEntity;
 import com.example.agentmonitor.entity.IvrFlowEntity;
+import com.example.agentmonitor.event.FlowPublishedEvent;
+import com.example.agentmonitor.event.FlowUnpublishedEvent;
 import com.example.agentmonitor.exception.IvrFlowConflictException;
 import com.example.agentmonitor.exception.IvrFlowNotFoundException;
 import com.example.agentmonitor.repository.IvrFlowContentRepository;
 import com.example.agentmonitor.repository.IvrFlowRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fmr.ec3.oscc.common.EventType;
-import com.fmr.ec3.oscc.common.KafkaTopics;
-import com.fmr.ec3.oscc.common.payload.ivr.IvrFlowPublishedPayload;
 import com.fmr.ec3.oscc.ivr.model.FlowDefinition;
-import com.fmr.ec3.oscc.ivr.model.FlowEdge;
-import com.fmr.ec3.oscc.ivr.model.FlowNode;
-import com.fmr.ec3.oscc.ivr.model.FlowVariable;
-import com.fmr.ec3.oscc.ivr.model.NodeType;
-import com.fmr.ec3.oscc.ivr.model.VariableType;
+import com.fmr.ec3.oscc.ivr.model.FlowDefinitionFactory;
+import com.fmr.ec3.oscc.ivr.model.FlowStatus;
 import com.fmr.ec3.oscc.ivr.validation.FlowValidator;
 import com.fmr.ec3.oscc.ivr.validation.ValidationIssue;
 import com.fmr.ec3.oscc.ivr.validation.ValidationResult;
-import com.fmr.ec3.oscc.sender.EventProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -41,7 +36,7 @@ public class IvrFlowService {
     private final IvrFlowRepository flowRepository;
     private final IvrFlowContentRepository contentRepository;
     private final ObjectMapper objectMapper;
-    private final EventProducer eventProducer;
+    private final ApplicationEventPublisher applicationEventPublisher;
     private final FlowValidator flowValidator = new FlowValidator();
 
     @Transactional(readOnly = true)
@@ -73,6 +68,10 @@ public class IvrFlowService {
     public FlowDetailDto updateFlow(UUID id, UpdateFlowRequest request) {
         IvrFlowEntity entity = findFlowOrThrow(id);
 
+        if ("PUBLISHED".equals(entity.getStatus())) {
+            throw new IvrFlowConflictException(id, "Cannot modify a published flow");
+        }
+
         entity.setName(request.getName());
         entity.setDescription(request.getDescription());
 
@@ -94,7 +93,11 @@ public class IvrFlowService {
     @Transactional
     public void deleteFlow(UUID id) {
         IvrFlowEntity entity = findFlowOrThrow(id);
+        boolean wasPublished = "PUBLISHED".equals(entity.getStatus());
         flowRepository.delete(entity);
+        if (wasPublished) {
+            applicationEventPublisher.publishEvent(new FlowUnpublishedEvent(id));
+        }
         log.info("Deleted IVR flow: {} ({})", entity.getName(), id);
     }
 
@@ -113,6 +116,10 @@ public class IvrFlowService {
     @Transactional
     public FlowContentDto saveContent(UUID flowId, SaveFlowContentRequest request) {
         IvrFlowEntity flow = findFlowOrThrow(flowId);
+
+        if ("PUBLISHED".equals(flow.getStatus())) {
+            throw new IvrFlowConflictException(flowId, "Cannot modify a published flow");
+        }
 
         int nextVersion = contentRepository.findFirstByFlowIdOrderByVersionDesc(flowId)
                 .map(c -> c.getVersion() + 1)
@@ -166,7 +173,8 @@ public class IvrFlowService {
         flow.setStatus("PUBLISHED");
         flowRepository.save(flow);
 
-        sendFlowPublishedEvent(flowId, definition, flow.getVersion());
+        applicationEventPublisher.publishEvent(
+                new FlowPublishedEvent(flowId, definition, flow.getVersion()));
         log.info("Published IVR flow: {} version {}", flowId, flow.getVersion());
 
         return PublishResultDto.builder()
@@ -195,23 +203,6 @@ public class IvrFlowService {
                         .createdBy(c.getCreatedBy())
                         .build())
                 .toList();
-    }
-
-    private void sendFlowPublishedEvent(UUID flowId, FlowDefinition definition, int version) {
-        try {
-            String flowDefJson = objectMapper.writeValueAsString(definition);
-            IvrFlowPublishedPayload payload = new IvrFlowPublishedPayload(
-                    flowId.toString(), flowDefJson, version, System.currentTimeMillis());
-            eventProducer.send(
-                    KafkaTopics.IVR_FLOWS,
-                    flowId.toString(),
-                    EventType.IVR_FLOW_PUBLISHED,
-                    "am-api",
-                    flowId.toString(),
-                    payload);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize flow definition for Kafka event: {}", flowId, e);
-        }
     }
 
     private IvrFlowEntity findFlowOrThrow(UUID id) {
@@ -268,75 +259,19 @@ public class IvrFlowService {
         }
     }
 
-    @SuppressWarnings("unchecked")
-    private FlowDefinition parseFlowDefinition(IvrFlowEntity flow, FlowContentDto content) {
-        try {
-            Map<String, Object> contentMap = objectMapper.readValue(content.getContent(), Map.class);
-
-            List<Map<String, Object>> nodesRaw = (List<Map<String, Object>>) contentMap.getOrDefault("nodes", List.of());
-            List<Map<String, Object>> edgesRaw = (List<Map<String, Object>>) contentMap.getOrDefault("edges", List.of());
-            List<Map<String, Object>> varsRaw = (List<Map<String, Object>>) contentMap.getOrDefault("variables", List.of());
-
-            List<FlowNode> nodes = nodesRaw.stream()
-                    .map(this::parseNode)
-                    .toList();
-
-            List<FlowEdge> edges = edgesRaw.stream()
-                    .map(this::parseEdge)
-                    .toList();
-
-            List<FlowVariable> variables = varsRaw.stream()
-                    .map(this::parseVariable)
-                    .toList();
-
-            return FlowDefinition.builder()
-                    .id(flow.getId().toString())
-                    .name(flow.getName())
-                    .entryNodeId(flow.getEntryNodeId())
-                    .nodes(nodes)
-                    .edges(edges)
-                    .variables(variables)
-                    .maxSessionDurationSeconds(flow.getMaxSessionDurationSeconds())
-                    .maxSteps(flow.getMaxSteps())
-                    .build();
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException("Failed to parse flow content", e);
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private FlowNode parseNode(Map<String, Object> raw) {
-        Map<String, Object> config = (Map<String, Object>) raw.getOrDefault("config", Map.of());
-        return FlowNode.builder()
-                .id((String) raw.get("id"))
-                .type(NodeType.valueOf((String) raw.get("type")))
-                .label((String) raw.get("label"))
-                .config(config)
-                .build();
-    }
-
-    private FlowEdge parseEdge(Map<String, Object> raw) {
-        return FlowEdge.builder()
-                .id((String) raw.get("id"))
-                .sourceNodeId((String) raw.get("sourceNodeId"))
-                .targetNodeId((String) raw.get("targetNodeId"))
-                .condition((String) raw.get("condition"))
-                .build();
-    }
-
-    private FlowVariable parseVariable(Map<String, Object> raw) {
-        FlowVariable.Builder builder = FlowVariable.builder()
-                .name((String) raw.get("name"));
-
-        String type = (String) raw.get("type");
-        if (type != null) {
-            builder.type(VariableType.valueOf(type));
-        } else {
-            builder.type(VariableType.STRING);
-        }
-
-        builder.defaultValue((String) raw.get("defaultValue"));
-        return builder.build();
+    private FlowDefinition parseFlowDefinition(
+            IvrFlowEntity flow, FlowContentDto content) {
+        return FlowDefinitionFactory.fromContentJson(
+                objectMapper,
+                flow.getId().toString(),
+                flow.getName(),
+                flow.getDescription(),
+                flow.getEntryNodeId(),
+                flow.getMaxSessionDurationSeconds(),
+                flow.getMaxSteps(),
+                flow.getVersion(),
+                FlowStatus.valueOf(flow.getStatus()),
+                content.getContent());
     }
 
     private Map<String, Object> toIssueMap(ValidationIssue issue) {

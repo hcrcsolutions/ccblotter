@@ -8,10 +8,18 @@ management:
         include: health,info
 
 spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:osccstate}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 2
+      connection-timeout: 5000
+      read-only: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: ivr-server-${random.uuid}
+      group-id: ivr-server
       auto-offset-reset: earliest
       enable-auto-commit: false
     listener:

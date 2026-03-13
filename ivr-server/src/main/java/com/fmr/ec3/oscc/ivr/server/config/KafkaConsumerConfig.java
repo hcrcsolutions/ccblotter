@@ -34,6 +34,7 @@ public class KafkaConsumerConfig {
         ConcurrentKafkaListenerContainerFactory<String, EventEnvelope<?>> factory =
             new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(ivrFlowConsumerFactory());
+        factory.setAutoStartup(false);
         factory.getContainerProperties().setAckMode(ContainerProperties.AckMode.MANUAL);
         factory.setCommonErrorHandler(ivrFlowErrorHandler());
         return factory;

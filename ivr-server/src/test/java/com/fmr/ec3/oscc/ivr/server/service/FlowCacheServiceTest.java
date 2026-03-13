@@ -65,13 +65,32 @@ class FlowCacheServiceTest {
 
     @Test
     void overwrite() {
-        service.put(FlowDefinition.builder().id("f1").name("V1").build());
+        service.put(FlowDefinition.builder().id("f1").name("V1").version(1).build());
 
-        FlowDefinition v2 = FlowDefinition.builder().id("f1").name("V2").build();
+        FlowDefinition v2 = FlowDefinition.builder().id("f1").name("V2").version(2).build();
         service.put(v2);
 
         assertThat(service.get("f1").getName()).isEqualTo("V2");
         assertThat(service.size()).isEqualTo(1);
+    }
+
+    @Test
+    void putRejectsOlderVersion() {
+        service.put(FlowDefinition.builder().id("f1").name("V3").version(3).build());
+
+        service.put(FlowDefinition.builder().id("f1").name("V1").version(1).build());
+
+        assertThat(service.get("f1").getName()).isEqualTo("V3");
+        assertThat(service.get("f1").getVersion()).isEqualTo(3);
+    }
+
+    @Test
+    void putAcceptsSameVersion() {
+        service.put(FlowDefinition.builder().id("f1").name("V2-old").version(2).build());
+
+        service.put(FlowDefinition.builder().id("f1").name("V2-new").version(2).build());
+
+        assertThat(service.get("f1").getName()).isEqualTo("V2-new");
     }
 
     @Test

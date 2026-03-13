@@ -15,8 +15,17 @@ public class FlowCacheService {
     private final ConcurrentHashMap<String, FlowDefinition> cache = new ConcurrentHashMap<>();
 
     public void put(FlowDefinition flow) {
-        cache.put(flow.getId(), flow);
-        log.debug("Cached flow '{}' (id={})", flow.getName(), flow.getId());
+        cache.merge(flow.getId(), flow, (existing, incoming) -> {
+            if (incoming.getVersion() >= existing.getVersion()) {
+                return incoming;
+            }
+            log.debug("Rejected stale flow '{}' (id={}, version {} < cached {})",
+                    incoming.getName(), incoming.getId(),
+                    incoming.getVersion(), existing.getVersion());
+            return existing;
+        });
+        log.debug("Cached flow '{}' (id={}, version={})",
+                flow.getName(), flow.getId(), flow.getVersion());
     }
 
     public FlowDefinition get(String flowId) {
