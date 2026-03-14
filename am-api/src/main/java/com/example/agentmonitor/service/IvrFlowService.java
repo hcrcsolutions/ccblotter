@@ -57,6 +57,7 @@ public class IvrFlowService {
         IvrFlowEntity entity = IvrFlowEntity.builder()
                 .name(request.getName())
                 .description(request.getDescription())
+                .businessUnit(request.getBusinessUnit())
                 .build();
 
         entity = flowRepository.save(entity);
@@ -74,6 +75,7 @@ public class IvrFlowService {
 
         entity.setName(request.getName());
         entity.setDescription(request.getDescription());
+        entity.setBusinessUnit(request.getBusinessUnit());
 
         if (request.getEntryNodeId() != null) {
             entity.setEntryNodeId(request.getEntryNodeId());
@@ -215,6 +217,7 @@ public class IvrFlowService {
                 .id(entity.getId())
                 .name(entity.getName())
                 .description(entity.getDescription())
+                .businessUnit(entity.getBusinessUnit())
                 .version(entity.getVersion())
                 .status(entity.getStatus())
                 .createdAt(entity.getCreatedAt())
@@ -227,6 +230,7 @@ public class IvrFlowService {
                 .id(entity.getId())
                 .name(entity.getName())
                 .description(entity.getDescription())
+                .businessUnit(entity.getBusinessUnit())
                 .version(entity.getVersion())
                 .status(entity.getStatus())
                 .entryNodeId(entity.getEntryNodeId())

@@ -1,9 +1,12 @@
 package com.example.agentmonitor.controller;
 
+import com.example.agentmonitor.dto.grid.GridRequest;
+import com.example.agentmonitor.dto.grid.GridResponse;
 import com.example.agentmonitor.dto.request.CreateFlowRequest;
 import com.example.agentmonitor.dto.request.SaveFlowContentRequest;
 import com.example.agentmonitor.dto.request.UpdateFlowRequest;
 import com.example.agentmonitor.dto.response.*;
+import com.example.agentmonitor.service.GridFilterService;
 import com.example.agentmonitor.service.IvrFlowService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -13,8 +16,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.function.Function;
 
 @RestController
 @RequestMapping("/api/v1/ivr/flows")
@@ -24,6 +30,32 @@ import java.util.UUID;
 public class IvrFlowController {
 
     private final IvrFlowService flowService;
+    private final GridFilterService gridFilterService;
+
+    private static final Map<String, Function<FlowSummaryDto, Comparable<?>>> FIELD_ACCESSORS =
+            new HashMap<>();
+
+    static {
+        FIELD_ACCESSORS.put("name", FlowSummaryDto::getName);
+        FIELD_ACCESSORS.put("description", FlowSummaryDto::getDescription);
+        FIELD_ACCESSORS.put("businessUnit", FlowSummaryDto::getBusinessUnit);
+        FIELD_ACCESSORS.put("status", FlowSummaryDto::getStatus);
+        FIELD_ACCESSORS.put("version", row -> row.getVersion());
+        FIELD_ACCESSORS.put("updatedAt", FlowSummaryDto::getUpdatedAt);
+    }
+
+    /**
+     * Query IVR flows with ag-grid filtering, sorting, and pagination.
+     */
+    @PostMapping("/query")
+    public ResponseEntity<GridResponse<FlowSummaryDto>> queryFlows(
+            @RequestBody GridRequest request) {
+        List<FlowSummaryDto> allFlows = flowService.listFlows();
+        GridResponse<FlowSummaryDto> response = gridFilterService.applyFilterSortPage(
+                allFlows, request, FIELD_ACCESSORS, Map.of());
+        response.setMetadata(Map.of("flowCount", (long) allFlows.size()));
+        return ResponseEntity.ok(response);
+    }
 
     /**
      * List all IVR flows ordered by last updated.

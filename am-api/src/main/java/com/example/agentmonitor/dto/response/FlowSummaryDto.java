@@ -19,6 +19,7 @@ public class FlowSummaryDto {
     private UUID id;
     private String name;
     private String description;
+    private String businessUnit;
     private int version;
     private String status;
     private Instant createdAt;

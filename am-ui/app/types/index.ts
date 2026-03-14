@@ -478,6 +478,7 @@ export interface IvrFlowSummary {
   id: string;
   name: string;
   description: string | null;
+  businessUnit: string | null;
   version: number;
   status: IvrFlowStatus;
   createdAt: string;

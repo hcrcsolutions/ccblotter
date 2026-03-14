@@ -18,4 +18,7 @@ public class CreateFlowRequest {
     private String name;
 
     private String description;
+
+    @Size(max = 100, message = "Business unit must not exceed 100 characters")
+    private String businessUnit;
 }

@@ -135,3 +135,16 @@ databaseChangeLog:
             columns:
               - column:
                   name: updated_at
+
+  - changeSet:
+      id: 10
+      author: am-api
+      comment: Add business_unit column to ivr_flows
+      changes:
+        - addColumn:
+            schemaName: osccstate
+            tableName: ivr_flows
+            columns:
+              - column:
+                  name: business_unit
+                  type: VARCHAR(100)

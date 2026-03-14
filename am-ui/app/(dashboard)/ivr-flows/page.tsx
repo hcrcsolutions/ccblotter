@@ -8,57 +8,33 @@ import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
 import IconButton from '@mui/material/IconButton';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import LinearProgress from '@mui/material/LinearProgress';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
-import Chip from '@mui/material/Chip';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
-import EditIcon from '@mui/icons-material/Edit';
 import CloseIcon from '@mui/icons-material/Close';
 import { getBackendUrl } from '../../lib/settings';
+import { FlowTesterDialog } from '../../components/IvrFlowEditor/FlowTesterDialog';
+import { IvrFlowGrid } from '../../components/IvrFlowGrid/IvrFlowGrid';
+import type { IvrFlowGridRef } from '../../components/IvrFlowGrid/IvrFlowGrid';
 import type { IvrFlowSummary } from '../../types';
 
 export default function IvrFlowsPage() {
   const router = useRouter();
-  const [flows, setFlows] = React.useState<IvrFlowSummary[]>([]);
-  const [loading, setLoading] = React.useState(true);
+  const gridRef = React.useRef<IvrFlowGridRef>(null);
+  const [flowCount, setFlowCount] = React.useState<number>(0);
   const [error, setError] = React.useState<string | null>(null);
   const [snackbar, setSnackbar] = React.useState<string | null>(null);
   const [createOpen, setCreateOpen] = React.useState(false);
   const [createName, setCreateName] = React.useState('');
   const [createDescription, setCreateDescription] = React.useState('');
+  const [createBusinessUnit, setCreateBusinessUnit] = React.useState('');
   const [deleteTarget, setDeleteTarget] = React.useState<IvrFlowSummary | null>(null);
-
-  const fetchFlows = React.useCallback(async () => {
-    try {
-      const res = await fetch(`${getBackendUrl()}/api/v1/ivr/flows`);
-      if (!res.ok) {
-        throw new Error('Failed to fetch flows');
-      }
-      const data: IvrFlowSummary[] = await res.json();
-      setFlows(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Failed to fetch flows');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    fetchFlows();
-  }, [fetchFlows]);
+  const [testTarget, setTestTarget] = React.useState<IvrFlowSummary | null>(null);
 
   const handleCreate = async () => {
     if (!createName.trim()) {
@@ -68,7 +44,7 @@ export default function IvrFlowsPage() {
       const res = await fetch(`${getBackendUrl()}/api/v1/ivr/flows`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: createName, description: createDescription }),
+        body: JSON.stringify({ name: createName, description: createDescription, businessUnit: createBusinessUnit || null }),
       });
       if (!res.ok) {
         throw new Error('Failed to create flow');
@@ -77,6 +53,7 @@ export default function IvrFlowsPage() {
       setCreateOpen(false);
       setCreateName('');
       setCreateDescription('');
+      setCreateBusinessUnit('');
       setSnackbar(`Created flow: ${created.name}`);
       router.push(`/ivr-flows/${created.id}`);
     } catch (e) {
@@ -97,25 +74,31 @@ export default function IvrFlowsPage() {
       }
       setDeleteTarget(null);
       setSnackbar(`Deleted flow: ${deleteTarget.name}`);
-      await fetchFlows();
+      gridRef.current?.refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete flow');
     }
   };
 
+  const handleMetadata = React.useCallback((metadata: Record<string, unknown>) => {
+    if (typeof metadata.flowCount === 'number') {
+      setFlowCount(metadata.flowCount);
+    }
+  }, []);
+
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: 3, height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
       {error && (
         <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
 
-      <Card>
-        <CardContent>
+      <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+        <CardContent sx={{ flex: 1, display: 'flex', flexDirection: 'column', '&:last-child': { pb: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
             <Typography variant="h6">
-              IVR Flows ({flows.length})
+              IVR Flows ({flowCount})
             </Typography>
             <Button
               variant="contained"
@@ -126,68 +109,15 @@ export default function IvrFlowsPage() {
             </Button>
           </Box>
 
-          {loading ? (
-            <LinearProgress />
-          ) : flows.length === 0 ? (
-            <Typography color="text.secondary">No IVR flows yet. Create one to get started.</Typography>
-          ) : (
-            <TableContainer>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Version</TableCell>
-                    <TableCell>Updated</TableCell>
-                    <TableCell align="right">Actions</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {flows.map((flow) => (
-                    <TableRow key={flow.id} hover>
-                      <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                          {flow.name}
-                        </Typography>
-                        {flow.description && (
-                          <Typography variant="caption" color="text.secondary">
-                            {flow.description}
-                          </Typography>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={flow.status}
-                          size="small"
-                          color={flow.status === 'PUBLISHED' ? 'success' : 'default'}
-                          variant="outlined"
-                        />
-                      </TableCell>
-                      <TableCell>{flow.version}</TableCell>
-                      <TableCell>
-                        {new Date(flow.updatedAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => router.push(`/ivr-flows/${flow.id}`)}
-                        >
-                          <EditIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => setDeleteTarget(flow)}
-                          color="error"
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          )}
+          <Box sx={{ flex: 1, minHeight: 300 }}>
+            <IvrFlowGrid
+              ref={gridRef}
+              onTest={(flow) => setTestTarget(flow)}
+              onEdit={(flowId) => router.push(`/ivr-flows/${flowId}`)}
+              onDelete={(flow) => setDeleteTarget(flow)}
+              onMetadata={handleMetadata}
+            />
+          </Box>
         </CardContent>
       </Card>
 
@@ -218,6 +148,13 @@ export default function IvrFlowsPage() {
                 alignItems: 'flex-start',
               },
             }}
+          />
+          <TextField
+            margin="dense"
+            label="Business Unit (optional)"
+            fullWidth
+            value={createBusinessUnit}
+            onChange={(e) => setCreateBusinessUnit(e.target.value)}
           />
         </DialogContent>
         <DialogActions>
@@ -251,6 +188,8 @@ export default function IvrFlowsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <FlowTesterDialog flow={testTarget} onClose={() => setTestTarget(null)} />
 
       <Snackbar
         open={snackbar !== null}

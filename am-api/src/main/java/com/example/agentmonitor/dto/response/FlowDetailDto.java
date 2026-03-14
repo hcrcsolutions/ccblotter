@@ -19,6 +19,7 @@ public class FlowDetailDto {
     private UUID id;
     private String name;
     private String description;
+    private String businessUnit;
     private int version;
     private String status;
     private String entryNodeId;

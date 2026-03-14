@@ -19,6 +19,9 @@ public class UpdateFlowRequest {
 
     private String description;
 
+    @Size(max = 100, message = "Business unit must not exceed 100 characters")
+    private String businessUnit;
+
     private String entryNodeId;
 
     private Integer maxSessionDurationSeconds;

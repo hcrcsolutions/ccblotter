@@ -33,6 +33,9 @@ public class IvrFlowEntity {
     @Builder.Default
     private String status = "DRAFT";
 
+    @Column(name = "business_unit", length = 100)
+    private String businessUnit;
+
     @Column(name = "entry_node_id", length = 50)
     private String entryNodeId;
 
