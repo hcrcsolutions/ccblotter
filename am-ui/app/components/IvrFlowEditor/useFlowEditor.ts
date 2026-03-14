@@ -165,6 +165,17 @@ export function useFlowEditor(flowId: string) {
   }, []);
 
   const save = React.useCallback(async () => {
+    // Validate: exactly one root node (no incoming edges)
+    const targetIds = new Set(state.edges.map((e) => e.target));
+    const rootNodes = state.nodes.filter((n) => !targetIds.has(n.id));
+    if (rootNodes.length > 1) {
+      setState((prev) => ({
+        ...prev,
+        error: `Flow must have exactly one root node (found ${rootNodes.length} nodes with no incoming edges)`,
+      }));
+      return;
+    }
+
     setState((prev) => ({ ...prev, saving: true, error: null }));
     try {
       const nodes = state.nodes.map((n) => ({
