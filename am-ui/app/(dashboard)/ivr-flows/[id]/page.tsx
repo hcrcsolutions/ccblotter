@@ -12,7 +12,13 @@ import { IvrFlowEditor } from '../../../components/IvrFlowEditor/IvrFlowEditor';
 export default function FlowEditorPage() {
   const params = useParams();
   const flowId = params.id as string;
-  const [flow, setFlow] = React.useState<{ id: string; name: string; status: string } | null>(null);
+  const [flow, setFlow] = React.useState<{
+    id: string;
+    name: string;
+    status: string;
+    description: string | null;
+    businessUnit: string | null;
+  } | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -52,7 +58,14 @@ export default function FlowEditorPage() {
 
   return (
     <Box sx={{ height: 'calc(100vh - 64px)', display: 'flex', flexDirection: 'column' }}>
-      <IvrFlowEditor flowId={flowId} flowName={flow.name} flowStatus={flow.status} />
+      <IvrFlowEditor
+        flowId={flowId}
+        flowName={flow.name}
+        flowStatus={flow.status}
+        flowDescription={flow.description}
+        flowBusinessUnit={flow.businessUnit}
+        onFlowUpdate={(updates) => setFlow((prev) => prev ? { ...prev, ...updates } : prev)}
+      />
     </Box>
   );
 }

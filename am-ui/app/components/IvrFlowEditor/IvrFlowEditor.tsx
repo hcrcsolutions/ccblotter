@@ -37,9 +37,12 @@ interface IvrFlowEditorProps {
   flowId: string;
   flowName: string;
   flowStatus: string;
+  flowDescription: string | null;
+  flowBusinessUnit: string | null;
+  onFlowUpdate: (updates: { name?: string; description?: string | null; businessUnit?: string | null }) => void;
 }
 
-export function IvrFlowEditor({ flowId, flowName, flowStatus }: IvrFlowEditorProps) {
+export function IvrFlowEditor({ flowId, flowName, flowStatus, flowDescription, flowBusinessUnit, onFlowUpdate }: IvrFlowEditorProps) {
   const editor = useFlowEditor(flowId);
   const reactFlowWrapper = React.useRef<HTMLDivElement>(null);
 
@@ -68,13 +71,17 @@ export function IvrFlowEditor({ flowId, flowName, flowStatus }: IvrFlowEditorPro
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
       <FlowToolbar
+        flowId={flowId}
         flowName={flowName}
         flowStatus={flowStatus}
+        flowDescription={flowDescription}
+        flowBusinessUnit={flowBusinessUnit}
         saving={editor.saving}
         publishing={editor.publishing}
         dirty={editor.dirty}
         onSave={editor.save}
         onPublish={editor.publish}
+        onFlowUpdate={onFlowUpdate}
       />
 
       {editor.error && (

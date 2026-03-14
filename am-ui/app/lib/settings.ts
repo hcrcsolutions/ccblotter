@@ -6,6 +6,27 @@ import { isServer, getLocalStorageItem, removeLocalStorageItem } from './ssr';
 
 const STORAGE_KEY = 'oscc-admin-settings';
 const DEFAULT_BACKEND_URL = 'https://localhost:8443';
+const DEFAULT_IVR_SERVER_URL = 'http://localhost:8082';
+
+interface StoredConfig {
+  name: string;
+  url: string;
+  ivrServerUrl?: string;
+}
+
+function findActiveConfig(settings: Record<string, unknown>): StoredConfig | null {
+  if (Array.isArray(settings.configs) && typeof settings.activeConfigName === 'string') {
+    return settings.configs.find(
+      (c: unknown): c is StoredConfig =>
+        typeof c === 'object' &&
+        c !== null &&
+        typeof (c as { name?: unknown }).name === 'string' &&
+        typeof (c as { url?: unknown }).url === 'string' &&
+        (c as { name: string }).name === settings.activeConfigName
+    ) ?? null;
+  }
+  return null;
+}
 
 /**
  * Get the configured backend URL from settings.
@@ -24,18 +45,9 @@ export function getBackendUrl(): string {
         throw new Error('Invalid settings format: not an object');
       }
       // Handle new format with multiple configs
-      if (Array.isArray(settings.configs) && typeof settings.activeConfigName === 'string') {
-        const activeConfig = settings.configs.find(
-          (c: unknown): c is { name: string; url: string } =>
-            typeof c === 'object' &&
-            c !== null &&
-            typeof (c as { name?: unknown }).name === 'string' &&
-            typeof (c as { url?: unknown }).url === 'string' &&
-            (c as { name: string }).name === settings.activeConfigName
-        );
-        if (activeConfig && activeConfig.url) {
-          return activeConfig.url;
-        }
+      const activeConfig = findActiveConfig(settings);
+      if (activeConfig && activeConfig.url) {
+        return activeConfig.url;
       }
       // Handle old format with just backendUrl
       if (typeof settings.backendUrl === 'string' && settings.backendUrl) {
@@ -55,4 +67,36 @@ export function getBackendUrl(): string {
  */
 export function getApiBaseUrl(): string {
   return `${getBackendUrl()}/api`;
+}
+
+/**
+ * Get the configured IVR server URL from settings.
+ * Reads from the active configuration's ivrServerUrl field.
+ * Falls back to default (http://localhost:8082) if not configured or on server.
+ */
+export function getIvrServerUrl(): string {
+  if (isServer()) {
+    return DEFAULT_IVR_SERVER_URL;
+  }
+  try {
+    const stored = getLocalStorageItem(STORAGE_KEY);
+    if (stored) {
+      const settings = JSON.parse(stored);
+      if (typeof settings !== 'object' || settings === null) {
+        return DEFAULT_IVR_SERVER_URL;
+      }
+      // Read from active config
+      const activeConfig = findActiveConfig(settings);
+      if (activeConfig && typeof activeConfig.ivrServerUrl === 'string' && activeConfig.ivrServerUrl) {
+        return activeConfig.ivrServerUrl;
+      }
+      // Legacy: top-level ivrServerUrl
+      if (typeof settings.ivrServerUrl === 'string' && settings.ivrServerUrl) {
+        return settings.ivrServerUrl;
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+  return DEFAULT_IVR_SERVER_URL;
 }

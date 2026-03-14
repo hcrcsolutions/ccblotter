@@ -12,7 +12,6 @@ import Snackbar from '@mui/material/Snackbar';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemButton from '@mui/material/ListItemButton';
-import ListItemText from '@mui/material/ListItemText';
 import ListItemSecondaryAction from '@mui/material/ListItemSecondaryAction';
 import IconButton from '@mui/material/IconButton';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -26,6 +25,7 @@ const STORAGE_KEY = 'oscc-admin-settings';
 interface BackendConfig {
   name: string;
   url: string;
+  ivrServerUrl: string;
 }
 
 interface Settings {
@@ -33,9 +33,11 @@ interface Settings {
   configs: BackendConfig[];
 }
 
+const DEFAULT_IVR_SERVER_URL = 'http://localhost:8082';
+
 const DEFAULT_CONFIGS: BackendConfig[] = [
-  { name: 'Local (HTTPS)', url: 'https://localhost:8443' },
-  { name: 'Local (HTTP)', url: 'http://localhost:8080' },
+  { name: 'Local (HTTPS)', url: 'https://localhost:8443', ivrServerUrl: DEFAULT_IVR_SERVER_URL },
+  { name: 'Local (HTTP)', url: 'http://localhost:8080', ivrServerUrl: DEFAULT_IVR_SERVER_URL },
 ];
 
 const DEFAULT_SETTINGS: Settings = {
@@ -55,17 +57,21 @@ function getStoredSettings(): Settings {
           activeConfigName: 'Custom',
           configs: [
             ...DEFAULT_CONFIGS,
-            { name: 'Custom', url: parsed.backendUrl },
+            { name: 'Custom', url: parsed.backendUrl, ivrServerUrl: parsed.ivrServerUrl || DEFAULT_IVR_SERVER_URL },
           ],
         };
       }
       const merged = { ...DEFAULT_SETTINGS, ...parsed };
+      // Migration: add ivrServerUrl to configs that don't have it
+      merged.configs = merged.configs.map((c: BackendConfig) => ({
+        ...c,
+        ivrServerUrl: c.ivrServerUrl || parsed.ivrServerUrl || DEFAULT_IVR_SERVER_URL,
+      }));
       // Validate that activeConfigName points to a valid config
       if (!merged.configs.some((c: BackendConfig) => c.name === merged.activeConfigName)) {
-        // Fall back to first config if active config is missing
         merged.activeConfigName = merged.configs[0]?.name ?? DEFAULT_SETTINGS.activeConfigName;
       }
-      return merged;
+      return { activeConfigName: merged.activeConfigName, configs: merged.configs };
     }
   } catch (e) {
     console.error('Failed to load settings:', e);
@@ -84,6 +90,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = React.useState<Settings>(DEFAULT_SETTINGS);
   const [newName, setNewName] = React.useState('');
   const [newUrl, setNewUrl] = React.useState('');
+  const [newIvrUrl, setNewIvrUrl] = React.useState(DEFAULT_IVR_SERVER_URL);
   const [saved, setSaved] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const { reconnect } = useWebSocketContext();
@@ -133,20 +140,26 @@ export default function SettingsPage() {
       return;
     }
 
-    // Validate URL
+    // Validate Backend URL
     try {
       new URL(newUrl);
     } catch {
-      setError('Please enter a valid URL');
+      setError('Please enter a valid Backend URL');
       return;
     }
 
-    // Remove trailing slash
-    const normalizedUrl = newUrl.replace(/\/+$/, '');
+    // Validate IVR Server URL
+    try {
+      new URL(newIvrUrl);
+    } catch {
+      setError('Please enter a valid IVR Server URL');
+      return;
+    }
 
     const newConfig: BackendConfig = {
       name: newName.trim(),
-      url: normalizedUrl,
+      url: newUrl.replace(/\/+$/, ''),
+      ivrServerUrl: newIvrUrl.replace(/\/+$/, ''),
     };
 
     const newSettings = {
@@ -157,6 +170,7 @@ export default function SettingsPage() {
     saveSettings(newSettings);
     setNewName('');
     setNewUrl('');
+    setNewIvrUrl(DEFAULT_IVR_SERVER_URL);
     setSaved(true);
     setError(null);
   };
@@ -168,15 +182,19 @@ export default function SettingsPage() {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 600 }}>
+    <Box sx={{ p: 3, maxWidth: 700 }}>
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            Active Backend
+            Active Configuration
           </Typography>
 
           <Alert severity="info" sx={{ mb: 2 }}>
-            <strong>{activeConfig.name}</strong>: {activeConfig.url}
+            <strong>{activeConfig.name}</strong>
+            <Box sx={{ display: 'flex', gap: 4, mt: 0.5 }}>
+              <Typography variant="body2">Backend: {activeConfig.url}</Typography>
+              <Typography variant="body2">IVR Server: {activeConfig.ivrServerUrl}</Typography>
+            </Box>
           </Alert>
 
           <Typography variant="body2" color="text.secondary">
@@ -204,14 +222,23 @@ export default function SettingsPage() {
                   mb: 0.5,
                 }}
               >
-                <ListItemButton onClick={() => handleSelectConfig(config.name)}>
+                <ListItemButton onClick={() => handleSelectConfig(config.name)} sx={{ pr: 6 }}>
                   {config.name === settings.activeConfigName && (
-                    <CheckIcon sx={{ mr: 1, color: 'success.main' }} fontSize="small" />
+                    <CheckIcon sx={{ mr: 1, color: 'success.main', flexShrink: 0 }} fontSize="small" />
                   )}
-                  <ListItemText
-                    primary={config.name}
-                    secondary={config.url}
-                  />
+                  <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                      {config.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 3 }}>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        Backend: {config.url}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" noWrap>
+                        IVR: {config.ivrServerUrl}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </ListItemButton>
                 <ListItemSecondaryAction>
                   <IconButton
@@ -244,14 +271,22 @@ export default function SettingsPage() {
             sx={{ mb: 2 }}
           />
 
-          <TextField
-            fullWidth
-            label="Backend URL"
-            value={newUrl}
-            onChange={(e) => setNewUrl(e.target.value)}
-            placeholder="https://example.com:8443"
-            sx={{ mb: 2 }}
-          />
+          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+            <TextField
+              label="Backend URL"
+              value={newUrl}
+              onChange={(e) => setNewUrl(e.target.value)}
+              placeholder="https://example.com:8443"
+              sx={{ flex: 1 }}
+            />
+            <TextField
+              label="IVR Server URL"
+              value={newIvrUrl}
+              onChange={(e) => setNewIvrUrl(e.target.value)}
+              placeholder={DEFAULT_IVR_SERVER_URL}
+              sx={{ flex: 1 }}
+            />
+          </Box>
 
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
