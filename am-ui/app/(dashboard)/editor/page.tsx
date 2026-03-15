@@ -8,6 +8,7 @@ import DatacenterEditor from '../../components/Editor/DatacenterEditor';
 import TrunkEditor from '../../components/Editor/TrunkEditor';
 import SbcEditor from '../../components/Editor/SbcEditor';
 import EdgeEditor from '../../components/Editor/EdgeEditor';
+import BusinessUnitEditor from '../../components/Editor/BusinessUnitEditor';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -42,6 +43,7 @@ export default function EditorPage() {
           <Tab label="Trunks" />
           <Tab label="SBCs" />
           <Tab label="Connections" />
+          <Tab label="Business Units" />
         </Tabs>
       </Box>
 
@@ -56,6 +58,9 @@ export default function EditorPage() {
       </TabPanel>
       <TabPanel value={tabIndex} index={3}>
         <EdgeEditor />
+      </TabPanel>
+      <TabPanel value={tabIndex} index={4}>
+        <BusinessUnitEditor />
       </TabPanel>
     </Box>
   );

@@ -15,9 +15,14 @@ import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
 import DialogActions from '@mui/material/DialogActions';
 import TextField from '@mui/material/TextField';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import { getBackendUrl } from '../../lib/settings';
+import { useBusinessUnits } from '../../hooks/useBusinessUnits';
 import { FlowTesterDialog } from '../../components/IvrFlowEditor/FlowTesterDialog';
 import { IvrFlowGrid } from '../../components/IvrFlowGrid/IvrFlowGrid';
 import type { IvrFlowGridRef } from '../../components/IvrFlowGrid/IvrFlowGrid';
@@ -33,6 +38,7 @@ export default function IvrFlowsPage() {
   const [createName, setCreateName] = React.useState('');
   const [createDescription, setCreateDescription] = React.useState('');
   const [createBusinessUnit, setCreateBusinessUnit] = React.useState('');
+  const { businessUnits } = useBusinessUnits();
   const [deleteTarget, setDeleteTarget] = React.useState<IvrFlowSummary | null>(null);
   const [testTarget, setTestTarget] = React.useState<IvrFlowSummary | null>(null);
 
@@ -149,13 +155,23 @@ export default function IvrFlowsPage() {
               },
             }}
           />
-          <TextField
-            margin="dense"
-            label="Business Unit (optional)"
-            fullWidth
-            value={createBusinessUnit}
-            onChange={(e) => setCreateBusinessUnit(e.target.value)}
-          />
+          <FormControl fullWidth sx={{ mt: 1 }}>
+            <InputLabel>Business Unit (optional)</InputLabel>
+            <Select
+              value={createBusinessUnit}
+              label="Business Unit (optional)"
+              onChange={(e) => setCreateBusinessUnit(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {businessUnits.map((bu) => (
+                <MenuItem key={bu} value={bu}>
+                  {bu}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateOpen(false)}>Cancel</Button>

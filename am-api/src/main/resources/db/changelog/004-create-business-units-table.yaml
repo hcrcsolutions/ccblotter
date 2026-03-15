@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 11
+      author: am-api
+      comment: Create business_units table for managing allowed business unit values
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: business_units
+            columns:
+              - column:
+                  name: name
+                  type: VARCHAR(100)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false

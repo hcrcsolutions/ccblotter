@@ -9,12 +9,17 @@ import CircularProgress from '@mui/material/CircularProgress';
 import IconButton from '@mui/material/IconButton';
 import Drawer from '@mui/material/Drawer';
 import TextField from '@mui/material/TextField';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import SaveIcon from '@mui/icons-material/Save';
 import PublishIcon from '@mui/icons-material/Publish';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useRouter } from 'next/navigation';
 import { getBackendUrl } from '../../lib/settings';
+import { useBusinessUnits } from '../../hooks/useBusinessUnits';
 
 interface FlowToolbarProps {
   flowId: string;
@@ -44,6 +49,7 @@ export function FlowToolbar({
   onFlowUpdate,
 }: FlowToolbarProps) {
   const router = useRouter();
+  const { businessUnits } = useBusinessUnits();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [settingsName, setSettingsName] = React.useState(flowName);
   const [settingsDescription, setSettingsDescription] = React.useState(flowDescription ?? '');
@@ -169,13 +175,23 @@ export function FlowToolbar({
               },
             }}
           />
-          <TextField
-            label="Business Unit"
-            value={settingsBusinessUnit}
-            onChange={(e) => setSettingsBusinessUnit(e.target.value)}
-            fullWidth
-            size="small"
-          />
+          <FormControl fullWidth size="small">
+            <InputLabel>Business Unit</InputLabel>
+            <Select
+              value={settingsBusinessUnit}
+              label="Business Unit"
+              onChange={(e) => setSettingsBusinessUnit(e.target.value)}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {businessUnits.map((bu) => (
+                <MenuItem key={bu} value={bu}>
+                  {bu}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           {settingsError && (
             <Typography color="error" variant="body2">
               {settingsError}

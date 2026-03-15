@@ -5,3 +5,5 @@ databaseChangeLog:
       file: db/changelog/002-create-recordings-table.yaml
   - include:
       file: db/changelog/003-create-ivr-flow-tables.yaml
+  - include:
+      file: db/changelog/004-create-business-units-table.yaml
