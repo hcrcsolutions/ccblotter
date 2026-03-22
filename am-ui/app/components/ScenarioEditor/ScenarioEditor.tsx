@@ -17,13 +17,15 @@ import {
   type NodeTypes,
   type EdgeTypes,
   type Edge,
+  type MiniMapNodeProps,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import type { EdgeType } from '../../types';
 import { getBackendUrl } from '../../lib/settings';
 import { useScenarioEditor } from './useScenarioEditor';
-import { EDGE_TYPE_LABELS, EDGE_TYPE_STYLES } from './scenarioConstants';
+import { EDGE_TYPE_LABELS, EDGE_TYPE_STYLES, ROLE_COLORS } from './scenarioConstants';
+import type { BookendNodeData } from './ScenarioBookendNode';
 import { ScenarioToolbar } from './ScenarioToolbar';
 import { EditorSidePanel } from './EditorSidePanel';
 import { AddActorDialog } from './AddActorDialog';
@@ -47,6 +49,48 @@ const edgeTypes: EdgeTypes = {
 };
 
 const EDGE_TYPES: EdgeType[] = ['SEQUENCE', 'SYNC', 'TRIGGER', 'WAIT_FOR'];
+
+function MiniMapNodeRenderer({ id, x, y, width, height, color, strokeColor, strokeWidth }: MiniMapNodeProps) {
+  const isBookend = id.startsWith('start-') || id.startsWith('end-');
+  if (isBookend) {
+    const pw = width * 0.5;
+    const ph = height * 0.6;
+    return (
+      <rect
+        x={x + (width - pw) / 2}
+        y={y + (height - ph) / 2}
+        width={pw}
+        height={ph}
+        rx={ph / 2}
+        ry={ph / 2}
+        fill={color}
+        stroke={strokeColor}
+        strokeWidth={strokeWidth}
+      />
+    );
+  }
+  return (
+    <rect
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      rx={5}
+      ry={5}
+      fill={color}
+      stroke={strokeColor}
+      strokeWidth={strokeWidth}
+    />
+  );
+}
+
+function miniMapNodeColor(node: { type?: string; data: Record<string, unknown> }): string {
+  if (node.type === 'scenarioBookend') {
+    const data = node.data as BookendNodeData;
+    return ROLE_COLORS[data.actorRole];
+  }
+  return '#e2e2e2';
+}
 
 interface EdgeContextMenuState {
   mouseX: number;
@@ -208,7 +252,7 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
               />
               <Background />
               <Controls />
-              <MiniMap />
+              <MiniMap nodeColor={miniMapNodeColor} nodeComponent={MiniMapNodeRenderer} />
               <EdgeTypeLegend />
               {/* Per-type arrow markers for dependency edges */}
               <svg>
