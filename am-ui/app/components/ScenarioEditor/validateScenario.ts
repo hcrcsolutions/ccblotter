@@ -116,7 +116,30 @@ export function validateScenario(content: ScenarioContent): ValidationResult {
     }
   }
 
-  // 7. At least 1 assertion
+  // 7. Warn when a non-first step in a swim lane has no same-actor predecessor
+  const stepMap = new Map(content.steps.map((s) => [s.id, s]));
+  for (const actor of content.actors) {
+    const laneSteps = content.steps
+      .filter((s) => s.actorId === actor.id)
+      .sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0));
+    for (let i = 1; i < laneSteps.length; i++) {
+      const step = laneSteps[i];
+      const hasSameActorPredecessor = (step.dependsOn ?? []).some((dep) => {
+        const source = stepMap.get(dep.stepId);
+        return source && source.actorId === actor.id;
+      });
+      if (!hasSameActorPredecessor) {
+        const actionLabel = ACTION_LABELS[step.action] || step.action;
+        issues.push({
+          severity: 'warning',
+          stepId: step.id,
+          message: `${actionLabel} has no predecessor in ${actor.name}'s lane — execution order is not guaranteed`,
+        });
+      }
+    }
+  }
+
+  // 8. At least 1 assertion
   if (content.assertions.length === 0) {
     issues.push({ severity: 'warning', message: 'No assertions defined' });
   }

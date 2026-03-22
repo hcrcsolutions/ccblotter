@@ -32,12 +32,14 @@ import { RunResultsPanel } from './RunResultsPanel';
 import { TranscriptViewer } from './TranscriptViewer';
 import { RunHistoryDialog } from './RunHistoryDialog';
 import { ScenarioStepNode } from './ScenarioStepNode';
+import { ScenarioBookendNode } from './ScenarioBookendNode';
 import { ScenarioDependencyEdge } from './ScenarioDependencyEdge';
 import { SwimLaneBackground } from './SwimLaneBackground';
 import { EdgeTypeLegend } from './EdgeTypeLegend';
 
 const nodeTypes: NodeTypes = {
   scenarioStep: ScenarioStepNode,
+  scenarioBookend: ScenarioBookendNode,
 };
 
 const edgeTypes: EdgeTypes = {

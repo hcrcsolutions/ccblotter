@@ -85,8 +85,11 @@ function autoPosition(
   };
 }
 
+/** Vertical gap between a bookend node and the nearest step. */
+const BOOKEND_GAP = 60;
+
 function deriveNodes(content: ScenarioContent): Node[] {
-  return content.steps.map((step) => {
+  const stepNodes: Node[] = content.steps.map((step) => {
     const actor = content.actors.find((a) => a.id === step.actorId);
     const assertionCount = content.assertions.filter((a) => a.afterStepId === step.id).length;
     const hasDepError = !!ACTION_DEP_REQUIREMENTS[step.action]
@@ -105,6 +108,47 @@ function deriveNodes(content: ScenarioContent): Node[] {
       data: nodeData,
     };
   });
+
+  // Bookend nodes (Start / End) for each actor lane
+  const bookendNodes: Node[] = [];
+  for (let i = 0; i < content.actors.length; i++) {
+    const actor = content.actors[i];
+    const laneSteps = content.steps.filter((s) => s.actorId === actor.id);
+    const x = laneX(i);
+
+    let startY: number;
+    let endY: number;
+    if (laneSteps.length > 0) {
+      const minY = Math.min(...laneSteps.map((s) => s.position?.y ?? LANE_HEADER_HEIGHT));
+      const maxY = Math.max(...laneSteps.map((s) => s.position?.y ?? LANE_HEADER_HEIGHT));
+      startY = minY - BOOKEND_GAP;
+      endY = maxY + BOOKEND_GAP + 20;
+    } else {
+      startY = LANE_HEADER_HEIGHT;
+      endY = LANE_HEADER_HEIGHT + BOOKEND_GAP;
+    }
+
+    bookendNodes.push({
+      id: `start-${actor.id}`,
+      type: 'scenarioBookend',
+      position: { x, y: startY },
+      data: { variant: 'start', actorId: actor.id, actorRole: actor.role },
+      draggable: false,
+      selectable: false,
+      deletable: false,
+    });
+    bookendNodes.push({
+      id: `end-${actor.id}`,
+      type: 'scenarioBookend',
+      position: { x, y: endY },
+      data: { variant: 'end', actorId: actor.id, actorRole: actor.role },
+      draggable: false,
+      selectable: false,
+      deletable: false,
+    });
+  }
+
+  return [...stepNodes, ...bookendNodes];
 }
 
 function inferEdgeLabel(
@@ -160,7 +204,7 @@ function deriveEdges(content: ScenarioContent): Edge[] {
     actorMap.set(a.id, a);
   }
 
-  return content.steps.flatMap((step) =>
+  const depEdges = content.steps.flatMap((step) =>
     (step.dependsOn ?? []).map((dep) => {
       const depId = dep.stepId;
       const edgeType = dep.type ?? 'SEQUENCE';
@@ -195,6 +239,56 @@ function deriveEdges(content: ScenarioContent): Edge[] {
       };
     }),
   );
+
+  // Bookend edges: START → lane roots, lane leaves → END
+  const sameActorHasSuccessor = new Set<string>();
+  for (const step of content.steps) {
+    for (const dep of step.dependsOn ?? []) {
+      const source = stepMap.get(dep.stepId);
+      if (source && source.actorId === step.actorId) {
+        sameActorHasSuccessor.add(dep.stepId);
+      }
+    }
+  }
+
+  const bookendEdges: Edge[] = [];
+  for (const actor of content.actors) {
+    const laneSteps = content.steps.filter((s) => s.actorId === actor.id);
+    for (const step of laneSteps) {
+      const hasSameActorPredecessor = (step.dependsOn ?? []).some((dep) => {
+        const source = stepMap.get(dep.stepId);
+        return source && source.actorId === actor.id;
+      });
+      if (!hasSameActorPredecessor) {
+        bookendEdges.push({
+          id: `e-start-${actor.id}-${step.id}`,
+          source: `start-${actor.id}`,
+          target: step.id,
+          sourceHandle: 'bottom',
+          targetHandle: 'top',
+          type: 'scenarioDependency',
+          data: { label: '', edgeType: 'SEQUENCE' },
+          selectable: false,
+          deletable: false,
+        });
+      }
+      if (!sameActorHasSuccessor.has(step.id)) {
+        bookendEdges.push({
+          id: `e-${step.id}-end-${actor.id}`,
+          source: step.id,
+          target: `end-${actor.id}`,
+          sourceHandle: 'bottom',
+          targetHandle: 'top',
+          type: 'scenarioDependency',
+          data: { label: '', edgeType: 'SEQUENCE' },
+          selectable: false,
+          deletable: false,
+        });
+      }
+    }
+  }
+
+  return [...depEdges, ...bookendEdges];
 }
 
 export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
@@ -290,7 +384,7 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
       const snapped = changes.map((c) => {
         if (c.type === 'position' && 'position' in c && c.position) {
           const node = prev.find((n) => n.id === c.id);
-          if (node) {
+          if (node && node.type === 'scenarioStep') {
             const stepData = node.data as StepNodeData;
             const actorIdx = currentActors.findIndex((a) => a.id === stepData.step.actorId);
             const snappedX = laneX(Math.max(0, actorIdx));
@@ -397,6 +491,12 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     }
     const sourceId = connection.source;
     const targetId = connection.target;
+
+    // Reject manual connections from/to bookend nodes
+    if (sourceId.startsWith('start-') || sourceId.startsWith('end-')
+      || targetId.startsWith('start-') || targetId.startsWith('end-')) {
+      return;
+    }
 
     const isVerticalHandle = connection.sourceHandle === 'top'
       || connection.sourceHandle === 'bottom'
