@@ -68,6 +68,7 @@ interface UseScenarioEditorReturn {
   removeAssertion: (assertionId: string) => void;
   updateSettings: (updates: Partial<ScenarioSettings>) => void;
   updateEdgeType: (sourceId: string, targetId: string, newType: EdgeType) => void;
+  tidyLayout: () => void;
   save: () => Promise<void>;
   clearError: () => void;
 }
@@ -85,8 +86,10 @@ function autoPosition(
   };
 }
 
-/** Vertical gap between a bookend node and the nearest step. */
-const BOOKEND_GAP = 60;
+/** Gap between lane header and Start bookend. */
+const HEADER_BOOKEND_GAP = 20;
+/** Gap between a bookend node and the nearest step node. */
+const BOOKEND_STEP_GAP = 50;
 
 function deriveNodes(content: ScenarioContent): Node[] {
   const stepNodes: Node[] = content.steps.map((step) => {
@@ -116,16 +119,13 @@ function deriveNodes(content: ScenarioContent): Node[] {
     const laneSteps = content.steps.filter((s) => s.actorId === actor.id);
     const x = laneX(i);
 
-    let startY: number;
+    const startY = LANE_HEADER_HEIGHT + HEADER_BOOKEND_GAP;
     let endY: number;
     if (laneSteps.length > 0) {
-      const minY = Math.min(...laneSteps.map((s) => s.position?.y ?? LANE_HEADER_HEIGHT));
       const maxY = Math.max(...laneSteps.map((s) => s.position?.y ?? LANE_HEADER_HEIGHT));
-      startY = minY - BOOKEND_GAP;
-      endY = maxY + BOOKEND_GAP + 20;
+      endY = maxY + BOOKEND_STEP_GAP + 40;
     } else {
-      startY = LANE_HEADER_HEIGHT;
-      endY = LANE_HEADER_HEIGHT + BOOKEND_GAP;
+      endY = startY + BOOKEND_STEP_GAP + 20;
     }
 
     bookendNodes.push({
@@ -637,6 +637,61 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     }));
   }, [updateContent]);
 
+  const tidyLayout = React.useCallback(() => {
+    updateContent((prev) => {
+      const stepMap = new Map(prev.steps.map((s) => [s.id, s]));
+
+      // Compute dependency level: longest path from any root to this step.
+      // Guarantees that for every edge source→target, level(source) < level(target),
+      // so all arrows point downward.
+      const levels = new Map<string, number>();
+      function getLevel(stepId: string, stack: Set<string>): number {
+        if (levels.has(stepId)) {
+          return levels.get(stepId)!;
+        }
+        if (stack.has(stepId)) {
+          return 0;
+        }
+        stack.add(stepId);
+        const step = stepMap.get(stepId);
+        if (!step?.dependsOn?.length) {
+          levels.set(stepId, 0);
+          return 0;
+        }
+        let maxDep = -1;
+        for (const dep of step.dependsOn) {
+          if (stepMap.has(dep.stepId)) {
+            maxDep = Math.max(maxDep, getLevel(dep.stepId, stack));
+          }
+        }
+        const level = maxDep + 1;
+        levels.set(stepId, level);
+        return level;
+      }
+      for (const step of prev.steps) {
+        getLevel(step.id, new Set());
+      }
+
+      // Compact: map used levels to consecutive indices to remove gaps
+      const usedLevels = [...new Set(levels.values())].sort((a, b) => a - b);
+      const compactMap = new Map<number, number>();
+      usedLevels.forEach((lvl, idx) => compactMap.set(lvl, idx));
+
+      const newSteps = prev.steps.map((step) => {
+        const actorIdx = prev.actors.findIndex((a) => a.id === step.actorId);
+        const compact = compactMap.get(levels.get(step.id) ?? 0) ?? 0;
+        return {
+          ...step,
+          position: {
+            x: laneX(Math.max(0, actorIdx)),
+            y: LANE_HEADER_HEIGHT + HEADER_BOOKEND_GAP + BOOKEND_STEP_GAP + compact * AUTO_ROW_HEIGHT,
+          },
+        };
+      });
+      return { ...prev, steps: newSteps };
+    });
+  }, [updateContent]);
+
   const save = React.useCallback(async () => {
     setSaving(true);
     setError(null);
@@ -689,6 +744,7 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     removeAssertion,
     updateSettings,
     updateEdgeType,
+    tidyLayout,
     save,
     clearError,
   };

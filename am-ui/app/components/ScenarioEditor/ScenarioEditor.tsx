@@ -160,6 +160,7 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
         onHistory={() => setHistoryOpen(true)}
         onAddActor={() => setAddActorOpen(true)}
         onAddStep={() => setAddStepOpen(true)}
+        onTidyLayout={editor.tidyLayout}
       />
 
       {editor.error && (

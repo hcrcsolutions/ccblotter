@@ -16,6 +16,7 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import HistoryIcon from '@mui/icons-material/History';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AddIcon from '@mui/icons-material/Add';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import type { ValidationResult } from './validateScenario';
 
 interface ScenarioToolbarProps {
@@ -29,10 +30,11 @@ interface ScenarioToolbarProps {
   onHistory: () => void;
   onAddActor: () => void;
   onAddStep: () => void;
+  onTidyLayout: () => void;
 }
 
 export function ScenarioToolbar({
-  name, version, dirty, saving, validation, onSave, onRun, onHistory, onAddActor, onAddStep,
+  name, version, dirty, saving, validation, onSave, onRun, onHistory, onAddActor, onAddStep, onTidyLayout,
 }: ScenarioToolbarProps) {
   const router = useRouter();
 
@@ -97,6 +99,12 @@ export function ScenarioToolbar({
       >
         Add Step
       </Button>
+
+      <Tooltip title="Tidy Layout">
+        <IconButton size="small" onClick={onTidyLayout}>
+          <AutoFixHighIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
 
       <Box sx={{ flex: 1 }} />
 
