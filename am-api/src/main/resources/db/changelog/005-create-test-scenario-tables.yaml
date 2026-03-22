@@ -1,0 +1,218 @@
+databaseChangeLog:
+  - changeSet:
+      id: 12
+      author: am-api
+      comment: Create test_scenarios table for test scenario definitions
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: test_scenarios
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: VARCHAR(200)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: description
+                  type: TEXT
+              - column:
+                  name: version
+                  type: INT
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: DRAFT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - sql:
+            sql: >
+              ALTER TABLE osccstate.test_scenarios
+              ADD CONSTRAINT chk_test_scenario_status
+              CHECK (status IN ('DRAFT', 'READY'))
+
+  - changeSet:
+      id: 13
+      author: am-api
+      comment: Create test_scenario_content table for versioned scenario content
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: test_scenario_content
+            columns:
+              - column:
+                  name: scenario_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: content
+                  type: JSONB
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_by
+                  type: VARCHAR(100)
+        - addPrimaryKey:
+            schemaName: osccstate
+            tableName: test_scenario_content
+            columnNames: scenario_id, version
+            constraintName: pk_test_scenario_content
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: test_scenario_content
+            baseColumnNames: scenario_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: test_scenarios
+            referencedColumnNames: id
+            constraintName: fk_test_scenario_content_scenario
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 14
+      author: am-api
+      comment: Create test_scenario_runs table for execution results
+      changes:
+        - createTable:
+            schemaName: osccstate
+            tableName: test_scenario_runs
+            columns:
+              - column:
+                  name: id
+                  type: UUID
+                  defaultValueComputed: gen_random_uuid()
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: scenario_id
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: scenario_version
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(20)
+                  defaultValue: PENDING
+                  constraints:
+                    nullable: false
+              - column:
+                  name: timing_mode
+                  type: VARCHAR(20)
+                  defaultValue: COMPRESSED
+                  constraints:
+                    nullable: false
+              - column:
+                  name: result
+                  type: VARCHAR(20)
+              - column:
+                  name: transcript
+                  type: JSONB
+              - column:
+                  name: assertion_results
+                  type: JSONB
+              - column:
+                  name: error_message
+                  type: TEXT
+              - column:
+                  name: started_at
+                  type: TIMESTAMP
+              - column:
+                  name: finished_at
+                  type: TIMESTAMP
+              - column:
+                  name: created_at
+                  type: TIMESTAMP
+                  defaultValueComputed: NOW()
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: osccstate
+            baseTableName: test_scenario_runs
+            baseColumnNames: scenario_id
+            referencedTableSchemaName: osccstate
+            referencedTableName: test_scenarios
+            referencedColumnNames: id
+            constraintName: fk_test_scenario_runs_scenario
+            onDelete: CASCADE
+        - sql:
+            sql: >
+              ALTER TABLE osccstate.test_scenario_runs
+              ADD CONSTRAINT chk_test_scenario_run_status
+              CHECK (status IN ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED'))
+        - sql:
+            sql: >
+              ALTER TABLE osccstate.test_scenario_runs
+              ADD CONSTRAINT chk_test_scenario_run_result
+              CHECK (result IS NULL OR result IN ('PASS', 'FAIL', 'ERROR'))
+
+  - changeSet:
+      id: 15
+      author: am-api
+      comment: Add indexes for test scenario queries
+      changes:
+        - createIndex:
+            schemaName: osccstate
+            tableName: test_scenarios
+            indexName: idx_test_scenarios_status
+            columns:
+              - column:
+                  name: status
+        - createIndex:
+            schemaName: osccstate
+            tableName: test_scenarios
+            indexName: idx_test_scenarios_updated_at
+            columns:
+              - column:
+                  name: updated_at
+        - createIndex:
+            schemaName: osccstate
+            tableName: test_scenario_runs
+            indexName: idx_test_scenario_runs_scenario_id
+            columns:
+              - column:
+                  name: scenario_id
+        - createIndex:
+            schemaName: osccstate
+            tableName: test_scenario_runs
+            indexName: idx_test_scenario_runs_status
+            columns:
+              - column:
+                  name: status

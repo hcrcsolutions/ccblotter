@@ -102,6 +102,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
     }
 
+    @ExceptionHandler(TestScenarioNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleTestScenarioNotFound(
+            TestScenarioNotFoundException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "TEST_SCENARIO_NOT_FOUND");
+        body.put("message", ex.getMessage());
+        body.put("scenarioId", ex.getScenarioId().toString());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(body);
+    }
+
+    @ExceptionHandler(TestScenarioConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleTestScenarioConflict(
+            TestScenarioConflictException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("error", "TEST_SCENARIO_CONFLICT");
+        body.put("message", ex.getMessage());
+        body.put("scenarioId", ex.getScenarioId().toString());
+        body.put("timestamp", Instant.now().toString());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<Map<String, Object>> handleMaxUploadSize(MaxUploadSizeExceededException ex) {
         Map<String, Object> body = new HashMap<>();

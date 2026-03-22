@@ -555,3 +555,113 @@ export interface IvrPublishResult {
   validationIssues: IvrValidationIssue[];
   message: string;
 }
+
+// ============================================================================
+// Test Scenario Types
+// ============================================================================
+
+export type ScenarioStatus = 'DRAFT' | 'READY';
+export type ActorRole = 'CALLER' | 'AGENT' | 'SUPERVISOR';
+export type CallerProfile = 'PATIENT' | 'IMPATIENT' | 'RANDOM_INPUT';
+export type AgentProfile = 'EFFICIENT' | 'NORMAL' | 'SLOW';
+export type CallerAction = 'DIAL_IN' | 'IVR_INPUT' | 'WAIT_IN_QUEUE' | 'HANG_UP';
+export type AgentAction = 'LOGIN' | 'GO_ONLINE' | 'GO_AWAY' | 'ANSWER_CALL' | 'HOLD_CALL' | 'RESUME_CALL' | 'END_CALL' | 'LOGOUT';
+export type SupervisorAction = 'LOGIN' | 'MONITOR';
+export type CommonAction = 'WAIT';
+export type ScenarioAction = CallerAction | AgentAction | SupervisorAction | CommonAction;
+export type EdgeType = 'SEQUENCE' | 'SYNC' | 'TRIGGER' | 'WAIT_FOR';
+
+export interface StepDependency {
+  stepId: string;
+  type: EdgeType;
+}
+export type AssertionType = 'AGENT_IN_STATE' | 'CALL_EXISTS' | 'CALL_CONNECTED_WITHIN' | 'QUEUE_LENGTH' | 'IVR_REACHED_NODE';
+export type TimingMode = 'REALTIME' | 'COMPRESSED';
+export type RunResult = 'PASS' | 'FAIL' | 'ERROR';
+export type RunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
+
+export interface ScenarioSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  version: number;
+  status: ScenarioStatus;
+  lastRunResult: RunResult | null;
+  lastRunAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScenarioActor {
+  id: string;
+  name: string;
+  role: ActorRole;
+  profile?: CallerProfile | AgentProfile;
+  config: Record<string, unknown>;
+}
+
+export interface ScenarioStep {
+  id: string;
+  actorId: string;
+  action: ScenarioAction;
+  delayMs: number;
+  durationMs?: number;
+  dependsOn?: StepDependency[];
+  config: Record<string, unknown>;
+  position?: { x: number; y: number };
+}
+
+export interface ScenarioAssertion {
+  id: string;
+  type: AssertionType;
+  afterStepId: string;
+  config: Record<string, unknown>;
+}
+
+export interface ScenarioSettings {
+  defaultTimingMode: TimingMode;
+  compressedTimeScale: number;
+  cleanupAfterRun: boolean;
+}
+
+export interface ScenarioContent {
+  actors: ScenarioActor[];
+  steps: ScenarioStep[];
+  assertions: ScenarioAssertion[];
+  settings: ScenarioSettings;
+}
+
+export interface ScenarioRun {
+  id: string;
+  scenarioId: string;
+  scenarioVersion: number;
+  status: RunStatus;
+  timingMode: TimingMode;
+  startedAt: string | null;
+  finishedAt: string | null;
+  result: RunResult | null;
+  transcript: TranscriptEntry[] | null;
+  assertionResults: AssertionResult[] | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+export interface TranscriptEntry {
+  timestamp: string;
+  actorId: string;
+  actorName: string;
+  stepId: string;
+  action: string;
+  status: string;
+  detail: string;
+  durationMs?: number;
+}
+
+export interface AssertionResult {
+  assertionId: string;
+  type: AssertionType;
+  passed: boolean;
+  expected: string;
+  actual: string;
+  message: string;
+}
