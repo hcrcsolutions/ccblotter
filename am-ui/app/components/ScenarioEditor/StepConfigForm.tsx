@@ -65,6 +65,17 @@ export function StepConfigForm({ step, onUpdate }: StepConfigFormProps) {
         />
       )}
 
+      {step.action === 'WHISPER' && (
+        <TextField
+          label="Whisper Message"
+          value={(step.config.whisperMessage as string) || ''}
+          onChange={(e) => updateConfig('whisperMessage', e.target.value)}
+          fullWidth
+          size="small"
+          placeholder="Message the agent hears"
+        />
+      )}
+
       {step.action === 'HOLD_CALL' && (
         <TextField
           label="Hold Duration (ms)"
@@ -75,6 +86,7 @@ export function StepConfigForm({ step, onUpdate }: StepConfigFormProps) {
           size="small"
         />
       )}
+
     </Box>
   );
 }

@@ -170,6 +170,9 @@ function inferEdgeLabel(
   if (sourceStep.action === 'HOLD_CALL' && targetStep.action === 'RESUME_CALL') {
     return 'held call';
   }
+  if (sourceStep.action === 'ANSWER_CALL' && targetStep.action === 'MONITOR') {
+    return 'active call';
+  }
   // Fall back to edge type short label
   return EDGE_TYPE_SHORT_LABELS[edgeType];
 }
@@ -183,6 +186,9 @@ function inferEdgeType(
   }
   if (sourceStep.action === 'DIAL_IN' && targetStep.action === 'WAIT_IN_QUEUE') {
     return 'TRIGGER';
+  }
+  if (sourceStep.action === 'ANSWER_CALL' && targetStep.action === 'MONITOR') {
+    return 'SYNC';
   }
   if (sourceStep.actorId === targetStep.actorId) {
     return 'SEQUENCE';
@@ -641,6 +647,46 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     updateContent((prev) => {
       const stepMap = new Map(prev.steps.map((s) => [s.id, s]));
 
+      // Build explicit dependency graph from dependsOn edges
+      const explicitDeps = new Map<string, string[]>();
+      for (const step of prev.steps) {
+        const deps: string[] = [];
+        for (const dep of step.dependsOn ?? []) {
+          if (stepMap.has(dep.stepId)) {
+            deps.push(dep.stepId);
+          }
+        }
+        explicitDeps.set(step.id, deps);
+      }
+
+      // Build implicit same-lane chains from vertical position order.
+      // Steps in the same lane without explicit same-lane predecessors
+      // should follow the step above them so they don't collapse.
+      const laneSteps = new Map<string, ScenarioStep[]>();
+      for (const step of prev.steps) {
+        const list = laneSteps.get(step.actorId) ?? [];
+        list.push(step);
+        laneSteps.set(step.actorId, list);
+      }
+      for (const [, steps] of laneSteps) {
+        steps.sort((a, b) => (a.position?.y ?? 0) - (b.position?.y ?? 0));
+        for (let i = 1; i < steps.length; i++) {
+          const current = steps[i];
+          const above = steps[i - 1];
+          // If current has no explicit dep on any step in the same lane,
+          // add an implicit dependency on the step directly above it.
+          const deps = explicitDeps.get(current.id) ?? [];
+          const hasSameLaneDep = deps.some((depId) => {
+            const depStep = stepMap.get(depId);
+            return depStep && depStep.actorId === current.actorId;
+          });
+          if (!hasSameLaneDep) {
+            deps.push(above.id);
+            explicitDeps.set(current.id, deps);
+          }
+        }
+      }
+
       // Compute dependency level: longest path from any root to this step.
       // Guarantees that for every edge source→target, level(source) < level(target),
       // so all arrows point downward.
@@ -653,16 +699,14 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
           return 0;
         }
         stack.add(stepId);
-        const step = stepMap.get(stepId);
-        if (!step?.dependsOn?.length) {
+        const deps = explicitDeps.get(stepId) ?? [];
+        if (deps.length === 0) {
           levels.set(stepId, 0);
           return 0;
         }
         let maxDep = -1;
-        for (const dep of step.dependsOn) {
-          if (stepMap.has(dep.stepId)) {
-            maxDep = Math.max(maxDep, getLevel(dep.stepId, stack));
-          }
+        for (const depId of deps) {
+          maxDep = Math.max(maxDep, getLevel(depId, stack));
         }
         const level = maxDep + 1;
         levels.set(stepId, level);

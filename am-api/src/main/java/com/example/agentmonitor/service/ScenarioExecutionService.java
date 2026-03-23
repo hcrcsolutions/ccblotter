@@ -10,6 +10,7 @@ import com.example.agentmonitor.model.AgentState;
 import com.example.agentmonitor.model.Call;
 import com.example.agentmonitor.model.CallState;
 import com.example.agentmonitor.model.EdgeType;
+import com.example.agentmonitor.model.ScenarioAction;
 import com.example.agentmonitor.repository.TestScenarioRepository;
 import com.example.agentmonitor.repository.TestScenarioRunRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -163,7 +164,8 @@ public class ScenarioExecutionService {
                 for (String stepId : batch) {
                     Map<String, Object> step = stepMap.get(stepId);
                     String actorId = (String) step.get("actorId");
-                    String action = (String) step.get("action");
+                    ScenarioAction action = parseScenarioAction(
+                            (String) step.get("action"));
                     // Read delayMs with fallback to timeOffsetMs for backward compat
                     long stepDelayMs = getLong(step, "delayMs",
                             getLong(step, "timeOffsetMs", 0));
@@ -237,7 +239,7 @@ public class ScenarioExecutionService {
                                 Map<String, Object> resultData = new HashMap<>();
                                 resultData.put("detail", detail);
                                 resultData.put("stepId", stepId);
-                                resultData.put("action", action);
+                                resultData.put("action", action.name());
                                 stepResults.put(stepId, resultData);
                             } catch (Exception e) {
                                 status = "ERROR";
@@ -254,7 +256,7 @@ public class ScenarioExecutionService {
                             entry.put("actorId", actorId);
                             entry.put("actorName", actorName);
                             entry.put("stepId", stepId);
-                            entry.put("action", action);
+                            entry.put("action", action.name());
                             entry.put("status", status);
                             entry.put("detail", detail);
                             entry.put("durationMs", durationMs);
@@ -320,7 +322,7 @@ public class ScenarioExecutionService {
 
     @SuppressWarnings("unchecked")
     private String executeStep(
-            String action, String actorId, String actorName,
+            ScenarioAction action, String actorId, String actorName,
             Map<String, Object> config, Map<String, Object> actor,
             Set<String> createdAgentIds, Set<String> createdCallIds,
             Set<String> createdQueueIds) {
@@ -330,8 +332,8 @@ public class ScenarioExecutionService {
                 ? (Map<String, Object>) actor.getOrDefault("config", Map.of())
                 : Map.of();
 
-        switch (action) {
-            case "LOGIN": {
+        return switch (action) {
+            case LOGIN -> {
                 String agentDisplayName = actorConfig.containsKey("agentName")
                         ? (String) actorConfig.get("agentName")
                         : actorName;
@@ -343,82 +345,94 @@ public class ScenarioExecutionService {
                         .build();
                 agentService.saveAgent(agent);
                 createdAgentIds.add(scenarioAgentId);
-                return "Agent logged in: " + agentDisplayName;
+                yield "Agent logged in: " + agentDisplayName;
             }
-            case "GO_ONLINE": {
+            case GO_ONLINE -> {
                 agentService.updateAgentState(scenarioAgentId, AgentState.ONLINE, null);
-                return "Agent went online";
+                yield "Agent went online";
             }
-            case "GO_AWAY": {
+            case GO_AWAY -> {
                 agentService.updateAgentState(scenarioAgentId, AgentState.AWAY, null);
-                return "Agent went away";
+                yield "Agent went away";
             }
-            case "ANSWER_CALL": {
+            case ANSWER_CALL -> {
                 var queuedCall = queueService.peekNextCall();
                 if (queuedCall != null) {
                     queueService.removeFromQueue(queuedCall.getId());
                     Call call = callService.startCall(queuedCall.getOriginator(), scenarioAgentId);
                     agentService.updateAgentState(scenarioAgentId, AgentState.ON_CALL, call.getId());
                     createdCallIds.add(call.getId());
-                    return "Answered call from " + queuedCall.getOriginator() + ", callId=" + call.getId();
+                    yield "Answered call from " + queuedCall.getOriginator() + ", callId=" + call.getId();
                 }
-                return "No call in queue to answer";
+                yield "No call in queue to answer";
             }
-            case "HOLD_CALL": {
-                Agent agent = agentService.getAgent(scenarioAgentId);
-                if (agent != null && agent.getCurrentCallId() != null) {
-                    callService.setCallState(agent.getCurrentCallId(), CallState.ON_HOLD);
-                    return "Call placed on hold";
+            case HOLD_CALL -> {
+                Agent heldAgent = agentService.getAgent(scenarioAgentId);
+                if (heldAgent != null && heldAgent.getCurrentCallId() != null) {
+                    callService.setCallState(heldAgent.getCurrentCallId(), CallState.ON_HOLD);
+                    yield "Call placed on hold";
                 }
-                return "No active call to hold";
+                yield "No active call to hold";
             }
-            case "RESUME_CALL": {
-                Agent agent = agentService.getAgent(scenarioAgentId);
-                if (agent != null && agent.getCurrentCallId() != null) {
-                    callService.setCallState(agent.getCurrentCallId(), CallState.TALKING);
-                    return "Call resumed";
+            case RESUME_CALL -> {
+                Agent resumeAgent = agentService.getAgent(scenarioAgentId);
+                if (resumeAgent != null && resumeAgent.getCurrentCallId() != null) {
+                    callService.setCallState(resumeAgent.getCurrentCallId(), CallState.TALKING);
+                    yield "Call resumed";
                 }
-                return "No held call to resume";
+                yield "No held call to resume";
             }
-            case "END_CALL": {
-                Agent agent = agentService.getAgent(scenarioAgentId);
-                if (agent != null && agent.getCurrentCallId() != null) {
-                    String callId = agent.getCurrentCallId();
+            case END_CALL -> {
+                Agent endAgent = agentService.getAgent(scenarioAgentId);
+                if (endAgent != null && endAgent.getCurrentCallId() != null) {
+                    String callId = endAgent.getCurrentCallId();
                     callService.endCall(callId);
                     agentService.updateAgentState(scenarioAgentId, AgentState.ONLINE, null);
-                    return "Call ended: " + callId;
+                    yield "Call ended: " + callId;
                 }
-                return "No active call to end";
+                yield "No active call to end";
             }
-            case "LOGOUT": {
+            case LOGOUT -> {
                 agentService.updateAgentState(scenarioAgentId, AgentState.UNAVAILABLE, null);
-                return "Agent logged out";
+                yield "Agent logged out";
             }
-            case "DIAL_IN": {
+            case DIAL_IN -> {
                 String originator = actorConfig.containsKey("phoneNumber")
                         ? (String) actorConfig.get("phoneNumber")
                         : "caller-" + actorId;
                 var queued = queueService.addToQueue(originator, "default", 5);
                 createdQueueIds.add(queued.getId());
-                return "Caller dialed in, queued as " + queued.getId();
+                yield "Caller dialed in, queued as " + queued.getId();
             }
-            case "IVR_INPUT": {
+            case IVR_INPUT -> {
                 String input = config.containsKey("input") ? (String) config.get("input") : "1";
-                return "IVR input: " + input;
+                yield "IVR input: " + input;
             }
-            case "WAIT_IN_QUEUE": {
-                return "Waiting in queue";
+            case WAIT_IN_QUEUE -> "Waiting in queue";
+            case HANG_UP -> "Caller hung up";
+            case MONITOR -> {
+                String callId = config.containsKey("callId")
+                        ? (String) config.get("callId") : null;
+                if (callId == null) {
+                    String detail = config.containsKey("detail")
+                            ? (String) config.get("detail") : "";
+                    int idx = detail.indexOf("callId=");
+                    if (idx >= 0) {
+                        callId = detail.substring(idx + 7);
+                    }
+                }
+                yield "Supervisor started monitoring"
+                        + (callId != null ? ", callId=" + callId : "");
             }
-            case "HANG_UP": {
-                return "Caller hung up";
+            case WHISPER -> {
+                String whisperMessage = config.containsKey("whisperMessage")
+                        ? (String) config.get("whisperMessage") : "(no message)";
+                yield "Supervisor whisper to agent: " + whisperMessage;
             }
-            case "MONITOR": {
-                return "Supervisor monitoring (no-op in V1)";
-            }
-            default: {
-                return "Unknown action: " + action;
-            }
-        }
+            case BARGE_IN -> "Supervisor barged in — all parties can hear";
+            case END_MONITOR -> "Supervisor ended monitoring session";
+            case WAIT -> "Waited";
+        };
     }
 
     private Map<String, Object> evaluateAssertion(
@@ -593,6 +607,14 @@ public class ScenarioExecutionService {
             return (Boolean) val;
         }
         return defaultValue;
+    }
+
+    private static ScenarioAction parseScenarioAction(String raw) {
+        try {
+            return ScenarioAction.valueOf(raw);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Unknown scenario action: " + raw);
+        }
     }
 
     private static EdgeType parseEdgeType(Object raw) {

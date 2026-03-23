@@ -303,6 +303,7 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
             selectedStepId={editor.selectedStepId}
             onUpdateActor={editor.updateActor}
             onUpdateStep={editor.updateStep}
+            onRemoveStep={editor.removeStep}
             onAddAssertion={editor.addAssertion}
             onUpdateAssertion={editor.updateAssertion}
             onRemoveAssertion={editor.removeAssertion}

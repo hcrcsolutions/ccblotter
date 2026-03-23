@@ -14,7 +14,7 @@ export const ROLE_LABELS: Record<ActorRole, string> = {
 
 export const CALLER_ACTIONS: ScenarioAction[] = ['DIAL_IN', 'IVR_INPUT', 'WAIT_IN_QUEUE', 'HANG_UP', 'WAIT'];
 export const AGENT_ACTIONS: ScenarioAction[] = ['LOGIN', 'GO_ONLINE', 'GO_AWAY', 'ANSWER_CALL', 'HOLD_CALL', 'RESUME_CALL', 'END_CALL', 'LOGOUT', 'WAIT'];
-export const SUPERVISOR_ACTIONS: ScenarioAction[] = ['LOGIN', 'MONITOR', 'WAIT'];
+export const SUPERVISOR_ACTIONS: ScenarioAction[] = ['LOGIN', 'MONITOR', 'WHISPER', 'BARGE_IN', 'END_MONITOR', 'WAIT'];
 
 export const ACTIONS_BY_ROLE: Record<ActorRole, ScenarioAction[]> = {
   CALLER: CALLER_ACTIONS,
@@ -36,6 +36,9 @@ export const ACTION_LABELS: Record<string, string> = {
   END_CALL: 'End Call',
   LOGOUT: 'Logout',
   MONITOR: 'Monitor',
+  WHISPER: 'Whisper',
+  BARGE_IN: 'Barge In',
+  END_MONITOR: 'End Monitor',
   WAIT: 'Wait',
 };
 
@@ -53,6 +56,9 @@ export const ACTION_ICONS: Record<string, string> = {
   END_CALL: 'call_end',
   LOGOUT: 'logout',
   MONITOR: 'visibility',
+  WHISPER: 'record_voice_over',
+  BARGE_IN: 'phone_in_talk',
+  END_MONITOR: 'visibility_off',
   WAIT: 'timer',
 };
 
@@ -121,6 +127,10 @@ export const ACTION_DEP_REQUIREMENTS: Partial<Record<ScenarioAction, ActionDepRe
   RESUME_CALL: { sourceActions: ['HOLD_CALL'], label: 'Dependency from a Hold Call step' },
   END_CALL: { sourceActions: ['ANSWER_CALL', 'RESUME_CALL'], label: 'Dependency from an Answer Call or Resume Call step' },
   IVR_INPUT: { sourceActions: ['DIAL_IN'], label: 'Dependency from a Dial In step' },
+  MONITOR: { sourceActions: ['ANSWER_CALL'], sameActor: false, label: 'Dependency from an Answer Call step (different actor)' },
+  WHISPER: { sourceActions: ['MONITOR'], sameActor: true, label: 'Sequence from a Monitor step (same actor)' },
+  BARGE_IN: { sourceActions: ['MONITOR'], sameActor: true, label: 'Sequence from a Monitor step (same actor)' },
+  END_MONITOR: { sourceActions: ['MONITOR', 'WHISPER', 'BARGE_IN'], sameActor: true, label: 'Sequence from a monitoring step (same actor)' },
   GO_ONLINE: { sourceActions: ['LOGIN'], sameActor: true, label: 'Sequence from a Login step (same actor)' },
   GO_AWAY: { sourceActions: ['LOGIN', 'GO_ONLINE'], sameActor: true, label: 'Sequence from a Login or Go Online step (same actor)' },
   LOGOUT: { sourceActions: ['LOGIN', 'GO_ONLINE', 'GO_AWAY'], sameActor: true, label: 'Sequence from a logged-in step (same actor)' },
