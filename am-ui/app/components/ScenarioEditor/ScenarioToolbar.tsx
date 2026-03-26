@@ -17,6 +17,7 @@ import HistoryIcon from '@mui/icons-material/History';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import AddIcon from '@mui/icons-material/Add';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import DataObjectIcon from '@mui/icons-material/DataObject';
 import type { ValidationResult } from './validateScenario';
 
 interface ScenarioToolbarProps {
@@ -31,10 +32,11 @@ interface ScenarioToolbarProps {
   onAddActor: () => void;
   onAddStep: () => void;
   onTidyLayout: () => void;
+  onJsonEditor: () => void;
 }
 
 export function ScenarioToolbar({
-  name, version, dirty, saving, validation, onSave, onRun, onHistory, onAddActor, onAddStep, onTidyLayout,
+  name, version, dirty, saving, validation, onSave, onRun, onHistory, onAddActor, onAddStep, onTidyLayout, onJsonEditor,
 }: ScenarioToolbarProps) {
   const router = useRouter();
 
@@ -103,6 +105,12 @@ export function ScenarioToolbar({
       <Tooltip title="Tidy Layout">
         <IconButton size="small" onClick={onTidyLayout}>
           <AutoFixHighIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+
+      <Tooltip title="JSON">
+        <IconButton size="small" onClick={onJsonEditor}>
+          <DataObjectIcon fontSize="small" />
         </IconButton>
       </Tooltip>
 

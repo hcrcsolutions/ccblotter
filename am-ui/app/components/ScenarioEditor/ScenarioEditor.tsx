@@ -21,7 +21,7 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import type { EdgeType } from '../../types';
+import type { EdgeType, ScenarioContent } from '../../types';
 import { getBackendUrl } from '../../lib/settings';
 import { useScenarioEditor } from './useScenarioEditor';
 import { EDGE_TYPE_LABELS, EDGE_TYPE_STYLES, ROLE_COLORS } from './scenarioConstants';
@@ -33,6 +33,7 @@ import { AddStepDialog } from './AddStepDialog';
 import { RunResultsPanel } from './RunResultsPanel';
 import { TranscriptViewer } from './TranscriptViewer';
 import { RunHistoryDialog } from './RunHistoryDialog';
+import { JsonEditorDialog } from './JsonEditorDialog';
 import { ScenarioStepNode } from './ScenarioStepNode';
 import { ScenarioBookendNode } from './ScenarioBookendNode';
 import { ScenarioDependencyEdge } from './ScenarioDependencyEdge';
@@ -116,6 +117,7 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
   const [transcriptOpen, setTranscriptOpen] = React.useState(false);
   const [historyOpen, setHistoryOpen] = React.useState(false);
   const [runError, setRunError] = React.useState<string | null>(null);
+  const [jsonEditorOpen, setJsonEditorOpen] = React.useState(false);
   const [edgeContextMenu, setEdgeContextMenu] = React.useState<EdgeContextMenuState | null>(null);
 
   const handleRun = async () => {
@@ -183,6 +185,14 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
     [edgeContextMenu, editor],
   );
 
+  const handleJsonEditorApply = React.useCallback(
+    (content: ScenarioContent) => {
+      editor.replaceContent(content);
+      setJsonEditorOpen(false);
+    },
+    [editor],
+  );
+
   if (editor.loading) {
     return (
       <Box sx={{ p: 3 }}>
@@ -205,6 +215,7 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
         onAddActor={() => setAddActorOpen(true)}
         onAddStep={() => setAddStepOpen(true)}
         onTidyLayout={editor.tidyLayout}
+        onJsonEditor={() => setJsonEditorOpen(true)}
       />
 
       {editor.error && (
@@ -371,6 +382,14 @@ export function ScenarioEditor({ scenario }: ScenarioEditorProps) {
         scenarioId={scenario.id}
         onClose={() => setHistoryOpen(false)}
         onViewRun={(runId) => setActiveRunId(runId)}
+      />
+
+      <JsonEditorDialog
+        open={jsonEditorOpen}
+        initialContent={editor.content}
+        scenarioName={scenario.name}
+        onClose={() => setJsonEditorOpen(false)}
+        onApply={handleJsonEditorApply}
       />
     </Box>
   );

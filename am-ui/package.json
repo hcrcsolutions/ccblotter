@@ -15,6 +15,7 @@
     "@mui/icons-material": "^7.0.0",
     "@mui/material": "^7.0.0",
     "@mui/material-nextjs": "^7.3.7",
+    "@monaco-editor/react": "^4.7.0",
     "@mui/x-data-grid": "^8.0.0",
     "@stomp/stompjs": "^7.0.0",
     "@xyflow/react": "^12.10.0",

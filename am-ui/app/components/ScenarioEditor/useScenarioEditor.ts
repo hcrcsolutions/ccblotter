@@ -68,6 +68,7 @@ interface UseScenarioEditorReturn {
   removeAssertion: (assertionId: string) => void;
   updateSettings: (updates: Partial<ScenarioSettings>) => void;
   updateEdgeType: (sourceId: string, targetId: string, newType: EdgeType) => void;
+  replaceContent: (content: ScenarioContent) => void;
   tidyLayout: () => void;
   save: () => Promise<void>;
   clearError: () => void;
@@ -643,6 +644,20 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     }));
   }, [updateContent]);
 
+  const replaceContent = React.useCallback((incoming: ScenarioContent) => {
+    const positioned: ScenarioContent = {
+      ...incoming,
+      steps: incoming.steps.map((step) => {
+        if (step.position) {
+          return step;
+        }
+        return { ...step, position: autoPosition(step, incoming.actors, incoming.steps) };
+      }),
+    };
+    setContent(positioned);
+    setDirty(true);
+  }, []);
+
   const tidyLayout = React.useCallback(() => {
     updateContent((prev) => {
       const stepMap = new Map(prev.steps.map((s) => [s.id, s]));
@@ -788,6 +803,7 @@ export function useScenarioEditor(scenarioId: string): UseScenarioEditorReturn {
     removeAssertion,
     updateSettings,
     updateEdgeType,
+    replaceContent,
     tidyLayout,
     save,
     clearError,
