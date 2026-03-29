@@ -677,7 +677,7 @@ management.health.db.enabled=true
 app.mock-data.enabled=true
 
 # Development logging
-logging.level.com.example.agentmonitor=DEBUG
+logging.level.com.fmr.ec3.oscc.state=DEBUG
 logging.level.org.springframework.web=DEBUG
 ```
 

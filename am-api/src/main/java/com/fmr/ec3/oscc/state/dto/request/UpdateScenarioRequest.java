@@ -1,0 +1,23 @@
+package com.fmr.ec3.oscc.state.dto.request;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class UpdateScenarioRequest {
+
+    @NotBlank(message = "Scenario name is required")
+    @Size(max = 200, message = "Scenario name must not exceed 200 characters")
+    private String name;
+
+    private String description;
+
+    private String status;
+}
