@@ -29,6 +29,7 @@
         <module>audio-store</module>
         <module>am-ivr</module>
         <module>ivr-server</module>
+        <module>freeswitch-esl</module>
     </modules>
 
     <properties>

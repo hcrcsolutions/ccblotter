@@ -1,0 +1,23 @@
+server:
+  port: 8085
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+freeswitch:
+  node-id: ${FREESWITCH_NODE_ID:fs-1}
+  datacenter: ${FREESWITCH_DATACENTER:dc1}
+  region: ${FREESWITCH_REGION:us-east}
+  max-sessions: 1000
+  heartbeat-interval-ms: 5000
+  esl-host: ${FREESWITCH_ESL_HOST:localhost}
+  esl-port: ${FREESWITCH_ESL_PORT:8021}
+  esl-password: ${FREESWITCH_ESL_PASSWORD:ClueCon}
+  esl-connect-timeout-ms: 5000
+  node-type: AUTO
+  detailed-breakdown-enabled: false
+
+logging:
+  level:
+    com.fmr.ec3.oscc.fsesl: DEBUG
