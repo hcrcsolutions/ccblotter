@@ -73,6 +73,16 @@ public final class RedisKeySchema {
         return INFRA_NODE_PREFIX + nodeId + ":alarm";
     }
 
+    // Node gateway status
+    public static String nodeGateways(String nodeId) {
+        return INFRA_NODE_PREFIX + nodeId + ":gateways";
+    }
+
+    // Node codec usage
+    public static String nodeCodecs(String nodeId) {
+        return INFRA_NODE_PREFIX + nodeId + ":codecs";
+    }
+
     // IVR keys (matching am-api IvrSessionService)
     public static final String IVR_SESSION_KEY_PREFIX = "ivr:session:";
     public static final String IVR_SESSIONS_ALL_KEY = "ivr:sessions:all";

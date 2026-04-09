@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -87,6 +88,8 @@ public class InfrastructureService {
         NodeMetrics metrics = redisStateService.getNodeMetrics(nodeId);
         SessionBreakdown sessionBreakdown = redisStateService.getSessionBreakdown(nodeId);
         List<TrendDataPoint> trendHistory = redisStateService.getTrendHistory(nodeId);
+        Map<String, String> gateways = redisStateService.getGatewayStatuses(nodeId);
+        Map<String, Integer> codecUsage = redisStateService.getCodecUsage(nodeId);
 
         return InfrastructureNode.builder()
                 .id(entity.getId())
@@ -104,6 +107,8 @@ public class InfrastructureService {
                 .trendHistory(trendHistory)
                 .carrierName(entity.getCarrierName())
                 .trunkGroup(entity.getTrunkGroup())
+                .gateways(gateways.isEmpty() ? null : gateways)
+                .codecUsage(codecUsage.isEmpty() ? null : codecUsage)
                 .maintenanceMode(entity.isMaintenanceMode())
                 .build();
     }

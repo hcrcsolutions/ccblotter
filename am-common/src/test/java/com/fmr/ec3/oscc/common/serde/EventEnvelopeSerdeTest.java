@@ -178,7 +178,8 @@ class EventEnvelopeSerdeTest {
     void roundTripNodeHeartbeat() {
         var metrics = new NodeMetricsDto(45.5, 62.3, 12, 3, 0.05, 0.1, 42);
         var breakdown = new SessionBreakdownDto(70, 30, 10, 15, 65, 10);
-        var payload = new NodeHeartbeatPayload("media-1", "MEDIA", 80, 100, metrics, breakdown);
+        var payload = new NodeHeartbeatPayload("media-1", "MEDIA", 80, 100, metrics, breakdown,
+            null, null);
         var envelope = envelope(EventType.NODE_HEARTBEAT, payload);
 
         EventEnvelope<?> result = roundTrip(envelope);

@@ -1,9 +1,12 @@
 package com.fmr.ec3.oscc.fsesl;
 
+import com.fmr.ec3.oscc.common.payload.infra.CodecUsageDto;
+import com.fmr.ec3.oscc.common.payload.infra.GatewayStatusDto;
 import com.fmr.ec3.oscc.fsesl.config.FreeSwitchProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -139,5 +142,64 @@ class FreeSwitchProbeTest {
         assertEquals(0, result.get().sessionsPerSecond());
         assertEquals(0, result.get().maxSessions());
         assertEquals(100, result.get().idleCpu(), 0.01);
+    }
+
+    @Test
+    void parseSofiaStatusWithGateways() {
+        String output = """
+                                     Name          Type                                       Data      State
+                =================================================================================================
+                               internal       profile            sip:mod_sofia@10.0.0.1:5060      RUNNING
+                                gateway1       gateway                    sip:gateway1@10.0.0.1      REGED
+                                gateway2       gateway                    sip:gateway2@10.0.0.1      NOREG
+                =================================================================================================
+                """;
+
+        List<GatewayStatusDto> gateways = probe.parseSofiaStatus(output);
+
+        assertEquals(3, gateways.size());
+        assertEquals("internal", gateways.get(0).name());
+        assertEquals("profile", gateways.get(0).type());
+        assertEquals("RUNNING", gateways.get(0).state());
+        assertEquals("gateway1", gateways.get(1).name());
+        assertEquals("gateway", gateways.get(1).type());
+        assertEquals("REGED", gateways.get(1).state());
+        assertEquals("gateway2", gateways.get(2).name());
+        assertEquals("NOREG", gateways.get(2).state());
+    }
+
+    @Test
+    void parseSofiaStatusEmpty() {
+        assertEquals(List.of(), probe.parseSofiaStatus(null));
+        assertEquals(List.of(), probe.parseSofiaStatus(""));
+        assertEquals(List.of(), probe.parseSofiaStatus("   "));
+    }
+
+    @Test
+    void parseChannelsJsonWithCodecs() {
+        String json = """
+                {"row_count":4,"rows":[
+                  {"read_codec":"PCMU","write_codec":"PCMU","direction":"inbound"},
+                  {"read_codec":"PCMU","write_codec":"PCMU","direction":"outbound"},
+                  {"read_codec":"OPUS","write_codec":"OPUS","direction":"inbound"},
+                  {"read_codec":"PCMU","write_codec":"PCMU","direction":"inbound"}
+                ]}""";
+
+        List<CodecUsageDto> codecs = probe.parseChannelsJson(json);
+
+        assertEquals(2, codecs.size());
+        // Sorted alphabetically
+        assertEquals("OPUS", codecs.get(0).codec());
+        assertEquals(1, codecs.get(0).count());
+        assertEquals("PCMU", codecs.get(1).codec());
+        assertEquals(3, codecs.get(1).count());
+    }
+
+    @Test
+    void parseChannelsJsonEmpty() {
+        assertEquals(List.of(), probe.parseChannelsJson(null));
+        assertEquals(List.of(), probe.parseChannelsJson(""));
+        assertEquals(List.of(), probe.parseChannelsJson("{}"));
+        assertEquals(List.of(), probe.parseChannelsJson("{\"row_count\":0,\"rows\":[]}"));
     }
 }

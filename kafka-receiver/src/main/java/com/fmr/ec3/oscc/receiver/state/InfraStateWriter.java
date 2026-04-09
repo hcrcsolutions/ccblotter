@@ -1,5 +1,7 @@
 package com.fmr.ec3.oscc.receiver.state;
 
+import com.fmr.ec3.oscc.common.payload.infra.CodecUsageDto;
+import com.fmr.ec3.oscc.common.payload.infra.GatewayStatusDto;
 import com.fmr.ec3.oscc.common.payload.infra.NodeAlarmPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeHeartbeatPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeMetricsDto;
@@ -39,13 +41,14 @@ public class InfraStateWriter {
         // Lua script for removeNodeState: atomically reads nodeType, deletes all keys,
         // and cleans up both index sets — avoids TOCTOU race on nodeType lookup.
         // KEYS[1]=infoKey, KEYS[2]=heartbeatKey, KEYS[3]=metricsKey,
-        // KEYS[4]=sessionsKey, KEYS[5]=trendsKey, KEYS[6]=alarmKey, KEYS[7]=INFRA_NODES_ALL
+        // KEYS[4]=sessionsKey, KEYS[5]=trendsKey, KEYS[6]=alarmKey,
+        // KEYS[7]=gatewaysKey, KEYS[8]=codecsKey, KEYS[9]=INFRA_NODES_ALL
         // ARGV[1]=nodeId, ARGV[2]=INFRA_NODES_BY_TYPE_PREFIX
         REMOVE_NODE_SCRIPT = new DefaultRedisScript<>();
         REMOVE_NODE_SCRIPT.setScriptText(
             "local nodeType = redis.call('HGET', KEYS[1], 'nodeType') " +
-            "redis.call('DEL', KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6]) " +
-            "redis.call('SREM', KEYS[7], ARGV[1]) " +
+            "redis.call('DEL', KEYS[1], KEYS[2], KEYS[3], KEYS[4], KEYS[5], KEYS[6], KEYS[7], KEYS[8]) " +
+            "redis.call('SREM', KEYS[9], ARGV[1]) " +
             "if nodeType then redis.call('SREM', ARGV[2] .. nodeType, ARGV[1]) end " +
             "return 1"
         );
@@ -121,6 +124,28 @@ public class InfraStateWriter {
             .ofMap(trendData);
         redisTemplate.opsForStream().add(record);
         redisTemplate.opsForStream().trim(trendsKey, MAX_TREND_ENTRIES, true);
+
+        // Persist gateway statuses
+        if (payload.gateways() != null && !payload.gateways().isEmpty()) {
+            String gatewaysKey = RedisKeySchema.nodeGateways(nodeId);
+            redisTemplate.delete(gatewaysKey);
+            Map<String, String> gatewayMap = new HashMap<>();
+            for (GatewayStatusDto gw : payload.gateways()) {
+                gatewayMap.put(gw.name(), gw.state());
+            }
+            redisTemplate.opsForHash().putAll(gatewaysKey, gatewayMap);
+        }
+
+        // Persist codec usage
+        if (payload.codecUsage() != null && !payload.codecUsage().isEmpty()) {
+            String codecsKey = RedisKeySchema.nodeCodecs(nodeId);
+            redisTemplate.delete(codecsKey);
+            Map<String, String> codecMap = new HashMap<>();
+            for (CodecUsageDto cu : payload.codecUsage()) {
+                codecMap.put(cu.codec(), String.valueOf(cu.count()));
+            }
+            redisTemplate.opsForHash().putAll(codecsKey, codecMap);
+        }
 
         log.debug("Wrote heartbeat for node {}", nodeId);
     }
@@ -200,6 +225,8 @@ public class InfraStateWriter {
                 RedisKeySchema.nodeSessions(nodeId),
                 RedisKeySchema.nodeTrends(nodeId),
                 RedisKeySchema.nodeAlarm(nodeId),
+                RedisKeySchema.nodeGateways(nodeId),
+                RedisKeySchema.nodeCodecs(nodeId),
                 RedisKeySchema.INFRA_NODES_ALL
             ),
             nodeId,

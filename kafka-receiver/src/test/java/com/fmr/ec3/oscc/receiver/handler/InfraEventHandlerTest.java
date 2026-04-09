@@ -35,7 +35,8 @@ class InfraEventHandlerTest {
     void handleHeartbeatWritesToRedis() {
         var metrics = new NodeMetricsDto(50.0, 60.0, 10, 2, 0.01, 0.1, 42);
         var breakdown = new SessionBreakdownDto(70, 30, 10, 15, 65, 10);
-        var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, metrics, breakdown);
+        var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, metrics, breakdown,
+            null, null);
 
         handler.handleHeartbeat(envelope(EventType.NODE_HEARTBEAT, payload));
 

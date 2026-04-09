@@ -2,6 +2,8 @@ package com.fmr.ec3.oscc.fsesl;
 
 import com.fmr.ec3.oscc.common.EventType;
 import com.fmr.ec3.oscc.common.KafkaTopics;
+import com.fmr.ec3.oscc.common.payload.infra.CodecUsageDto;
+import com.fmr.ec3.oscc.common.payload.infra.GatewayStatusDto;
 import com.fmr.ec3.oscc.common.payload.infra.NodeDeregisteredPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeHeartbeatPayload;
 import com.fmr.ec3.oscc.common.payload.infra.NodeMetricsDto;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -84,6 +87,8 @@ public class FreeSwitchNode {
         double memPercent = probe.getMemoryPercent();
         int channelCount = 0;
         int callCount = 0;
+        List<GatewayStatusDto> gateways = List.of();
+        List<CodecUsageDto> codecUsage = null;
 
         if (connectionManager.isConnected()) {
             Optional<FreeSwitchProbe.StatusResult> statusOpt = probe.fetchStatus();
@@ -99,6 +104,10 @@ public class FreeSwitchNode {
             callCount = probe.fetchCallCount();
             if (channelCount >= 0) {
                 activeSessions = channelCount;
+            }
+            gateways = probe.fetchGatewayStatuses();
+            if (props.isDetailedBreakdownEnabled()) {
+                codecUsage = probe.fetchCodecUsage();
             }
         } else {
             log.debug("ESL disconnected — sending degraded heartbeat for {}", nodeId);
@@ -118,7 +127,7 @@ public class FreeSwitchNode {
                 KafkaTopics.INFRA_HEARTBEATS, nodeId,
                 EventType.NODE_HEARTBEAT, nodeId, nodeId,
                 new NodeHeartbeatPayload(nodeId, resolvedNodeType, activeSessions, maxSessions,
-                        metrics, breakdown)
+                        metrics, breakdown, gateways, codecUsage)
         );
 
         alarmEvaluator.evaluate(nodeId, cpuPercent, memPercent, activeSessions, maxSessions);

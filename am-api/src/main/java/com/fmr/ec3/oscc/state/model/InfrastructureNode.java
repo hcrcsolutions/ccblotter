@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -39,6 +40,12 @@ public class InfrastructureNode {
     // NEW: Trunk-specific fields
     private String carrierName;       // Only for TRUNK type
     private String trunkGroup;        // e.g., "primary", "backup"
+
+    // NEW: Gateway statuses (gateway name → state)
+    private Map<String, String> gateways;
+
+    // NEW: Codec usage (codec name → channel count)
+    private Map<String, Integer> codecUsage;
 
     // NEW: Maintenance mode
     private boolean maintenanceMode;

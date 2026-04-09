@@ -68,7 +68,8 @@ public class MediaSessionSimulator {
         eventProducer.send(
             KafkaTopics.INFRA_HEARTBEATS, nodeId,
             EventType.NODE_HEARTBEAT, nodeId + "-session-sim", nodeId,
-            new NodeHeartbeatPayload(nodeId, "MEDIA", currentLoad, maxSessions, metrics, breakdown)
+            new NodeHeartbeatPayload(nodeId, "MEDIA", currentLoad, maxSessions, metrics, breakdown,
+                null, null)
         );
 
         log.debug("Session load: {} sessions={}/{} rtp={} xcode={} conf={}",

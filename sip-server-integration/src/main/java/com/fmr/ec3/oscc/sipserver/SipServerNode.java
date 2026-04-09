@@ -75,7 +75,8 @@ public class SipServerNode {
         eventProducer.send(
             KafkaTopics.INFRA_HEARTBEATS, nodeId,
             EventType.NODE_HEARTBEAT, nodeId, nodeId,
-            new NodeHeartbeatPayload(nodeId, "SIP", activeSessions, maxSessions, metrics, breakdown)
+            new NodeHeartbeatPayload(nodeId, "SIP", activeSessions, maxSessions, metrics, breakdown,
+                null, null)
         );
 
         log.debug("Heartbeat sent: {} sessions={}/{}", nodeId, activeSessions, maxSessions);

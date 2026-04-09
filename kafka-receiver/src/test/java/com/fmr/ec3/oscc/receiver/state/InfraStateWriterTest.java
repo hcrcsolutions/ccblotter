@@ -46,7 +46,7 @@ class InfraStateWriterTest {
     private NodeHeartbeatPayload heartbeatPayload() {
         var metrics = new NodeMetricsDto(50.0, 60.0, 10, 2, 0.01, 0.1, 42);
         var breakdown = new SessionBreakdownDto(70, 30, 10, 15, 65, 10);
-        return new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, metrics, breakdown);
+        return new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, metrics, breakdown, null, null);
     }
 
     @Test
@@ -100,6 +100,8 @@ class InfraStateWriterTest {
                 "infra:node:sip-1:sessions",
                 "infra:node:sip-1:trends",
                 "infra:node:sip-1:alarm",
+                "infra:node:sip-1:gateways",
+                "infra:node:sip-1:codecs",
                 "infra:nodes:all"
             )),
             eq("sip-1"),
@@ -110,7 +112,7 @@ class InfraStateWriterTest {
     @Test
     void writeHeartbeatSkipsNullMetrics() {
         var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500, null,
-            new SessionBreakdownDto(70, 30, 10, 15, 65, 10));
+            new SessionBreakdownDto(70, 30, 10, 15, 65, 10), null, null);
 
         writer.writeHeartbeat(payload);
 
@@ -120,7 +122,7 @@ class InfraStateWriterTest {
     @Test
     void writeHeartbeatSkipsNullSessionBreakdown() {
         var payload = new NodeHeartbeatPayload("sip-1", "SIP", 250, 500,
-            new NodeMetricsDto(50.0, 60.0, 10, 2, 0.01, 0.1, 42), null);
+            new NodeMetricsDto(50.0, 60.0, 10, 2, 0.01, 0.1, 42), null, null, null);
 
         writer.writeHeartbeat(payload);
 

@@ -33,6 +33,16 @@ public final class RedisKeys {
         return NODE_PREFIX + nodeId + ":trends";
     }
 
+    // Node gateway statuses (Hash: gatewayName → state)
+    public static String nodeGateways(String nodeId) {
+        return NODE_PREFIX + nodeId + ":gateways";
+    }
+
+    // Node codec usage (Hash: codecName → count)
+    public static String nodeCodecs(String nodeId) {
+        return NODE_PREFIX + nodeId + ":codecs";
+    }
+
     // Topology version (for cache invalidation)
     public static final String TOPOLOGY_VERSION = PREFIX + "topology:version";
 

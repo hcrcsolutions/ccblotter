@@ -5,6 +5,7 @@ import com.fmr.ec3.oscc.common.EventType;
 import com.fmr.ec3.oscc.common.payload.infra.*;
 import com.fmr.ec3.oscc.common.payload.ivr.*;
 import com.fmr.ec3.oscc.common.payload.sip.*;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,6 +45,7 @@ public class EventEnvelopeDeserializer implements Deserializer<EventEnvelope<?>>
         this.objectMapper = new ObjectMapper();
         this.objectMapper.registerModule(new JavaTimeModule());
         this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.objectMapper.disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES);
     }
 
     @Override

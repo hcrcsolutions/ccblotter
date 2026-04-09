@@ -82,7 +82,8 @@ public class MediaServerNode {
         eventProducer.send(
             KafkaTopics.INFRA_HEARTBEATS, nodeId,
             EventType.NODE_HEARTBEAT, nodeId, nodeId,
-            new NodeHeartbeatPayload(nodeId, "MEDIA", activeSessions, maxSessions, metrics, breakdown)
+            new NodeHeartbeatPayload(nodeId, "MEDIA", activeSessions, maxSessions, metrics, breakdown,
+                null, null)
         );
 
         log.debug("Heartbeat sent: {} sessions={}/{} (in={}, out={}, xcode={})",

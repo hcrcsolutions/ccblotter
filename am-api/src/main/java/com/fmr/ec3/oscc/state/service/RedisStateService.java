@@ -201,6 +201,34 @@ public class RedisStateService {
     }
 
     /**
+     * Get gateway statuses for a node.
+     */
+    public Map<String, String> getGatewayStatuses(String nodeId) {
+        String key = RedisKeys.nodeGateways(nodeId);
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+        if (data.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, String> result = new HashMap<>();
+        data.forEach((k, v) -> result.put(k.toString(), v.toString()));
+        return result;
+    }
+
+    /**
+     * Get codec usage for a node.
+     */
+    public Map<String, Integer> getCodecUsage(String nodeId) {
+        String key = RedisKeys.nodeCodecs(nodeId);
+        Map<Object, Object> data = redisTemplate.opsForHash().entries(key);
+        if (data.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<String, Integer> result = new HashMap<>();
+        data.forEach((k, v) -> result.put(k.toString(), parseInt(v)));
+        return result;
+    }
+
+    /**
      * Update topology version (for cache invalidation).
      */
     public void updateTopologyVersion() {
@@ -222,7 +250,9 @@ public class RedisStateService {
                 RedisKeys.nodeHeartbeat(nodeId),
                 RedisKeys.nodeSessions(nodeId),
                 RedisKeys.nodeMetrics(nodeId),
-                RedisKeys.nodeTrends(nodeId)
+                RedisKeys.nodeTrends(nodeId),
+                RedisKeys.nodeGateways(nodeId),
+                RedisKeys.nodeCodecs(nodeId)
         );
         redisTemplate.delete(keys);
         log.debug("Removed Redis state for node: {}", nodeId);

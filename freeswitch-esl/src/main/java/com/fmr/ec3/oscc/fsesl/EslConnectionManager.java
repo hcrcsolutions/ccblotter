@@ -13,6 +13,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 
 @Component
 public class EslConnectionManager implements DisposableBean {
@@ -24,6 +25,8 @@ public class EslConnectionManager implements DisposableBean {
     private volatile boolean connected;
     private ScheduledExecutorService reconnectExecutor;
     private final AtomicLong currentDelay = new AtomicLong();
+    private volatile Consumer<EslClient.EslMessage> eventListener;
+    private volatile Runnable onConnectedCallback;
 
     public EslConnectionManager(FreeSwitchProperties props) {
         this.props = props;
@@ -62,16 +65,63 @@ public class EslConnectionManager implements DisposableBean {
         }
     }
 
+    public Optional<String> sendCommand(String command) {
+        if (!connected) {
+            return Optional.empty();
+        }
+        EslClient client = this.eslClient;
+        if (client == null) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(client.sendCommand(command));
+        } catch (IOException e) {
+            log.warn("ESL command failed ({}), triggering reconnect: {}", command, e.getMessage());
+            markDisconnected();
+            scheduleReconnect();
+            return Optional.empty();
+        }
+    }
+
+    public void setEventListener(Consumer<EslClient.EslMessage> listener) {
+        this.eventListener = listener;
+        EslClient client = this.eslClient;
+        if (client != null) {
+            client.setEventListener(listener);
+        }
+    }
+
+    public void setOnConnectedCallback(Runnable callback) {
+        this.onConnectedCallback = callback;
+    }
+
     private void attemptConnect() {
         try {
             EslClient client = new EslClient(
                 props.getEslHost(), props.getEslPort(),
                 props.getEslPassword(), props.getEslConnectTimeoutMs()
             );
+
+            // Re-apply event listener to new client
+            Consumer<EslClient.EslMessage> listener = this.eventListener;
+            if (listener != null) {
+                client.setEventListener(listener);
+            }
+
             this.eslClient = client;
             this.connected = true;
             currentDelay.set(props.getReconnectInitialDelayMs());
             log.info("ESL connected to {}:{}", props.getEslHost(), props.getEslPort());
+
+            // Fire connected callback so subscribers can re-issue event/log commands
+            Runnable callback = this.onConnectedCallback;
+            if (callback != null) {
+                try {
+                    callback.run();
+                } catch (Exception e) {
+                    log.warn("onConnectedCallback threw exception", e);
+                }
+            }
         } catch (IOException e) {
             log.warn("ESL connect failed ({}:{}): {}", props.getEslHost(), props.getEslPort(), e.getMessage());
             scheduleReconnect();

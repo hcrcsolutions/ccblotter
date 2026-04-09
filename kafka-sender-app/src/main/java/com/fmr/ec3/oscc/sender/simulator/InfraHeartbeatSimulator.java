@@ -60,7 +60,8 @@ public class InfraHeartbeatSimulator {
             eventProducer.send(
                 KafkaTopics.INFRA_HEARTBEATS, nodeId,
                 EventType.NODE_HEARTBEAT, nodeId, nodeId,
-                new NodeHeartbeatPayload(nodeId, nodeType, activeSessions, maxSessions, metrics, breakdown)
+                new NodeHeartbeatPayload(nodeId, nodeType, activeSessions, maxSessions, metrics, breakdown,
+                    null, null)
             );
         }
 
