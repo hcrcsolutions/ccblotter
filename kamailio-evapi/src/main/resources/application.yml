@@ -1,0 +1,32 @@
+server:
+  port: 8086
+
+spring:
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+kamailio:
+  server-id: ${KAMAILIO_SERVER_ID:kam-1}
+  ev-api-host: ${KAMAILIO_EVAPI_HOST:localhost}
+  ev-api-port: ${KAMAILIO_EVAPI_PORT:8448}
+  connect-timeout-ms: 5000
+  state-sync-enabled: ${KAMAILIO_STATE_SYNC_ENABLED:true}
+  state-sync-interval-ms: ${KAMAILIO_STATE_SYNC_INTERVAL_MS:30000}
+  state-sync-rpc-timeout-ms: 5000
+  rpc-method-usrloc: ul.dump
+  rpc-method-presence: presence.list
+  rpc-method-dialog: dlg.list
+  datacenter: ${KAMAILIO_DATACENTER:dc1}
+  region: ${KAMAILIO_REGION:us-east}
+  max-sessions: ${KAMAILIO_MAX_SESSIONS:500}
+  heartbeat-interval-ms: ${KAMAILIO_HEARTBEAT_INTERVAL_MS:5000}
+  alarm-cpu-warning: 70
+  alarm-cpu-critical: 90
+  alarm-memory-warning: 75
+  alarm-memory-critical: 95
+  alarm-session-warning: 80
+  alarm-session-critical: 95
+
+logging:
+  level:
+    com.fmr.ec3.oscc.kamevapi: DEBUG

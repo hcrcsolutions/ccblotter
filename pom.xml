@@ -30,6 +30,7 @@
         <module>am-ivr</module>
         <module>ivr-server</module>
         <module>freeswitch-esl</module>
+        <module>kamailio-evapi</module>
     </modules>
 
     <properties>
